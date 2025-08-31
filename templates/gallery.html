@@ -89,10 +89,12 @@
                 <div class="modal-right">
                     <div class="modal-header">
                         <span id="modalDate" class="creation-date"></span>
-                        <button id="likeBtn" class="like-button" onclick="likeImage()">
-                            <span class="heart-icon">❤️</span>
-                            <span id="likeCount">0</span>
-                        </button>
+                        <div class="modal-like-section">
+                            <span class="like-text">마음에 드셨다면 하트</span>
+                            <button id="likeBtn" class="like-btn-large" onclick="likeImage()">
+                                ❤️ <span id="likeCount">0</span>
+                            </button>
+                        </div>
                     </div>
                     
                     <div class="conversation">
