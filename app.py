@@ -4,9 +4,11 @@ import base64
 import io
 import itertools
 import asyncio
+import threading
 from datetime import datetime
 from flask import Flask, request, render_template, jsonify, send_file
 import aiohttp
+import requests  # 동기식 HTTP 요청용 추가
 from dotenv import load_dotenv
 import uuid
 
@@ -40,44 +42,46 @@ def make_headers():
         headers["Authorization"] = f"Bearer {API_BEARER_TOKEN}"
     return headers
 
-async def send_request_async(payload):
+# 동기식 버전으로 변경
+def send_request_sync(payload):
     global API_KEYS, API_KEY_CYCLE
     headers = make_headers()
 
-    async with aiohttp.ClientSession() as session:
-        if API_KEYS:
-            keys_to_try = list(API_KEYS)
-            for _ in range(len(keys_to_try)):
-                key = next(API_KEY_CYCLE)
-                url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image-preview:generateContent?key={key}"
-                try:
-                    async with session.post(url, headers=headers, json=payload, timeout=60) as resp:
-                        data = await resp.json()
-
-                        if resp.status == 400 and "error" in data:
-                            details = data["error"].get("details", [])
-                            if any(d.get("reason") == "API_KEY_INVALID" for d in details):
-                                print(f"⚠️ Invalid API key 제외: {key}")
-                                API_KEYS = [k for k in API_KEYS if k != key]
-                                API_KEY_CYCLE = itertools.cycle(API_KEYS) if API_KEYS else None
-                                continue
-
-                        resp.raise_for_status()
-                        return data
-                except Exception as e:
-                    print(f"❌ {url} 요청 실패: {e}")
-                    continue
-            raise RuntimeError("🚨 모든 API KEY 실패")
-        else:
-            if not API_URL_ENV:
-                raise RuntimeError("🚨 API_KEY도 API_URL도 없음. 환경변수 확인하세요.")
+    if API_KEYS:
+        keys_to_try = list(API_KEYS)
+        for _ in range(len(keys_to_try)):
+            key = next(API_KEY_CYCLE)
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image-preview:generateContent?key={key}"
             try:
-                async with session.post(API_URL_ENV, headers=headers, json=payload, timeout=60) as resp:
-                    resp.raise_for_status()
-                    return await resp.json()
+                response = requests.post(url, headers=headers, json=payload, timeout=60)
+                
+                if response.status_code == 400:
+                    data = response.json()
+                    if "error" in data:
+                        details = data["error"].get("details", [])
+                        if any(d.get("reason") == "API_KEY_INVALID" for d in details):
+                            print(f"⚠️ Invalid API key 제외: {key}")
+                            API_KEYS = [k for k in API_KEYS if k != key]
+                            API_KEY_CYCLE = itertools.cycle(API_KEYS) if API_KEYS else None
+                            continue
+
+                response.raise_for_status()
+                return response.json()
+                
             except Exception as e:
-                print(f"❌ {API_URL_ENV} 요청 실패: {e}")
-                raise
+                print(f"❌ {url} 요청 실패: {e}")
+                continue
+        raise RuntimeError("🚨 모든 API KEY 실패")
+    else:
+        if not API_URL_ENV:
+            raise RuntimeError("🚨 API_KEY도 API_URL도 없음. 환경변수 확인하세요.")
+        try:
+            response = requests.post(API_URL_ENV, headers=headers, json=payload, timeout=60)
+            response.raise_for_status()
+            return response.json()
+        except Exception as e:
+            print(f"❌ {API_URL_ENV} 요청 실패: {e}")
+            raise
 
 @app.route('/')
 def index():
@@ -100,7 +104,7 @@ def gallery():
     return render_template('gallery.html', images=sorted_gallery, current_sort=sort_by)
 
 @app.route('/generate', methods=['POST'])
-async def generate_image():
+def generate_image():  # async 제거
     try:
         prompt = request.form.get('prompt', '').strip()
         if not prompt:
@@ -148,7 +152,7 @@ async def generate_image():
             ]
         }
 
-        data = await send_request_async(payload)
+        data = send_request_sync(payload)  # 동기식 함수 호출
 
         response_text = ""
         result_image_path = None
@@ -191,6 +195,8 @@ async def generate_image():
 
     except Exception as e:
         print(f"에러 발생: {e}")
+        import traceback
+        traceback.print_exc()  # 디버깅용 상세 에러 출력
         return jsonify({'error': f'오류 발생: {str(e)}'}), 500
 
 @app.route('/like/<image_id>', methods=['POST'])
@@ -207,6 +213,19 @@ def get_image_details(image_id):
         if item['id'] == image_id:
             return jsonify(item)
     return jsonify({'error': '이미지를 찾을 수 없습니다.'}), 404
+
+# 에러 핸들러 추가
+@app.errorhandler(404)
+def not_found(error):
+    if request.path.startswith('/api/') or request.path.startswith('/generate') or request.path.startswith('/like') or request.path.startswith('/image'):
+        return jsonify({'error': '요청한 리소스를 찾을 수 없습니다.'}), 404
+    return render_template('404.html'), 404
+
+@app.errorhandler(500)
+def internal_error(error):
+    if request.path.startswith('/api/') or request.path.startswith('/generate') or request.path.startswith('/like') or request.path.startswith('/image'):
+        return jsonify({'error': '서버 내부 오류가 발생했습니다.'}), 500
+    return render_template('500.html'), 500
 
 if __name__ == '__main__':
     app.run(host="0.0.0.0", port=7860, debug=True)
