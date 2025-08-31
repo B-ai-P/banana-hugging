@@ -30,10 +30,22 @@ document.addEventListener('DOMContentLoaded', function() {
         const formData = new FormData(form);
 
         try {
+            console.log('요청 전송 중...');
             const response = await fetch('/generate', {
                 method: 'POST',
                 body: formData
             });
+
+            console.log('응답 상태:', response.status);
+            console.log('응답 Content-Type:', response.headers.get('content-type'));
+
+            // 응답이 JSON인지 확인
+            const contentType = response.headers.get('content-type');
+            if (!contentType || !contentType.includes('application/json')) {
+                const text = await response.text();
+                console.error('JSON이 아닌 응답을 받았습니다:', text.substring(0, 200));
+                throw new Error('서버에서 예상치 못한 응답을 반환했습니다. 콘솔을 확인해주세요.');
+            }
 
             const data = await response.json();
 
@@ -45,6 +57,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 alert('오류: ' + data.error);
             }
         } catch (error) {
+            console.error('요청 오류:', error);
             alert('요청 중 오류가 발생했습니다: ' + error.message);
         } finally {
             loading.style.display = 'none';
