@@ -78,3 +78,220 @@ function resetForm() {
     // 프롬프트 입력칸에 포커스
     document.getElementById('prompt').focus();
 }
+
+// 드래그 앤 드롭 및 복사붙여넣기 기능
+let dragOverlay = null;
+let uploadedFiles = [null, null]; // 두 슬롯 관리
+
+// 페이지 로드시 초기화
+document.addEventListener('DOMContentLoaded', function() {
+    // 드래그 오버레이 생성
+    dragOverlay = document.createElement('div');
+    dragOverlay.className = 'drag-overlay';
+    dragOverlay.innerHTML = '🖼️ 이미지를 여기에 놓아주세요!';
+    document.body.appendChild(dragOverlay);
+    
+    // 복사붙여넣기 안내 표시
+    const fileUploads = document.getElementById('fileUploads');
+    if (fileUploads) {
+        const pasteInstruction = document.getElementById('pasteInstruction');
+        if (pasteInstruction) {
+            pasteInstruction.style.display = 'block';
+        }
+    }
+    
+    // 전역 드래그 이벤트
+    document.addEventListener('dragenter', handleGlobalDragEnter);
+    document.addEventListener('dragover', handleGlobalDragOver);
+    document.addEventListener('dragleave', handleGlobalDragLeave);
+    document.addEventListener('drop', handleGlobalDrop);
+    
+    // 복사붙여넣기 이벤트
+    document.addEventListener('paste', handlePaste);
+});
+
+// 전역 드래그 이벤트 처리
+function handleGlobalDragEnter(e) {
+    e.preventDefault();
+    if (hasImageFiles(e)) {
+        dragOverlay.classList.add('show');
+    }
+}
+
+function handleGlobalDragOver(e) {
+    e.preventDefault();
+}
+
+function handleGlobalDragLeave(e) {
+    e.preventDefault();
+    // 화면 밖으로 벗어날 때만 숨기기
+    if (e.clientX <= 0 || e.clientY <= 0 || 
+        e.clientX >= window.innerWidth || e.clientY >= window.innerHeight) {
+        dragOverlay.classList.remove('show');
+    }
+}
+
+function handleGlobalDrop(e) {
+    e.preventDefault();
+    dragOverlay.classList.remove('show');
+}
+
+// 드래그오버 처리
+function handleDragOver(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const dropZone = e.currentTarget;
+    dropZone.classList.add('drag-over');
+}
+
+// 드롭 처리
+function handleDrop(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const dropZone = e.currentTarget;
+    dropZone.classList.remove('drag-over');
+    
+    const files = e.dataTransfer.files;
+    const targetSlot = parseInt(dropZone.dataset.target);
+    
+    if (files.length > 0) {
+        processImageFile(files[0], targetSlot);
+    }
+}
+
+// 드래그 떠날 때
+document.addEventListener('dragleave', function(e) {
+    const dropZones = document.querySelectorAll('.drop-zone');
+    dropZones.forEach(zone => {
+        zone.classList.remove('drag-over');
+    });
+});
+
+// 복사붙여넣기 처리
+function handlePaste(e) {
+    const items = e.clipboardData.items;
+    
+    for (let i = 0; i < items.length; i++) {
+        if (items[i].type.indexOf('image') !== -1) {
+            e.preventDefault();
+            
+            const file = items[i].getAsFile();
+            const availableSlot = getNextAvailableSlot();
+            
+            if (availableSlot === -1) {
+                alert('이미 2개의 이미지가 업로드되었습니다. 먼저 이미지를 제거해주세요.');
+                return;
+            }
+            
+            processImageFile(file, availableSlot);
+            break;
+        }
+    }
+}
+
+// 이미지 파일 처리
+function processImageFile(file, targetSlot) {
+    // 파일 유효성 검사
+    if (!isValidImageFile(file)) {
+        alert('지원하지 않는 파일 형식입니다. (지원: PNG, JPG, JPEG, GIF, BMP, WEBP)');
+        return;
+    }
+    
+    // 15MB 체크
+    if (file.size > 15 * 1024 * 1024) {
+        const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
+        alert(`파일 크기가 너무 큽니다 (${sizeMB}MB). 최대 15MB까지 가능합니다.`);
+        return;
+    }
+    
+    // 파일을 해당 input에 설정
+    const fileInput = document.getElementById(`image${targetSlot}`);
+    const dataTransfer = new DataTransfer();
+    dataTransfer.items.add(file);
+    fileInput.files = dataTransfer.files;
+    
+    // 미리보기 표시
+    previewImage(fileInput, `preview${targetSlot}`);
+    
+    // 상태 업데이트
+    uploadedFiles[targetSlot - 1] = file;
+    updateDropZoneState(targetSlot, true);
+}
+
+// 파일 유효성 검사
+function isValidImageFile(file) {
+    const allowedTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/gif', 
+                         'image/bmp', 'image/webp', 'image/tiff', 'image/svg+xml'];
+    return allowedTypes.includes(file.type);
+}
+
+// 드래그된 파일이 이미지인지 확인
+function hasImageFiles(e) {
+    if (e.dataTransfer.types) {
+        return e.dataTransfer.types.includes('Files');
+    }
+    return false;
+}
+
+// 다음 사용 가능한 슬롯 찾기
+function getNextAvailableSlot() {
+    if (!uploadedFiles[0]) return 1;
+    if (!uploadedFiles[1]) return 2;
+    return -1; // 모든 슬롯 사용 중
+}
+
+// 드롭존 상태 업데이트
+function updateDropZoneState(slot, hasFile) {
+    const dropZone = document.querySelector(`.drop-zone[data-target="${slot}"]`);
+    const removeBtn = dropZone.querySelector('.remove-image');
+    
+    if (hasFile) {
+        dropZone.classList.add('has-file');
+        removeBtn.style.display = 'block';
+    } else {
+        dropZone.classList.remove('has-file');
+        removeBtn.style.display = 'none';
+    }
+}
+
+// 이미지 제거 함수
+function removeImage(slot) {
+    const fileInput = document.getElementById(`image${slot}`);
+    const preview = document.getElementById(`preview${slot}`);
+    
+    // 파일 입력 초기화
+    fileInput.value = '';
+    
+    // 미리보기 제거
+    preview.innerHTML = '';
+    
+    // 상태 업데이트
+    uploadedFiles[slot - 1] = null;
+    updateDropZoneState(slot, false);
+}
+
+// 기존 previewImage 함수 수정 (있다면)
+function previewImage(input, previewId) {
+    const preview = document.getElementById(previewId);
+    const file = input.files[0];
+    
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            preview.innerHTML = `<img src="${e.target.result}" alt="미리보기">`;
+        };
+        reader.readAsDataURL(file);
+        
+        // 슬롯 번호 추출
+        const slot = parseInt(previewId.replace('preview', ''));
+        uploadedFiles[slot - 1] = file;
+        updateDropZoneState(slot, true);
+    } else {
+        preview.innerHTML = '';
+        const slot = parseInt(previewId.replace('preview', ''));
+        uploadedFiles[slot - 1] = null;
+        updateDropZoneState(slot, false);
+    }
+}
