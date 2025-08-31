@@ -5,7 +5,7 @@ import io
 import itertools
 from datetime import datetime
 from flask import Flask, request, render_template, jsonify, send_file
-import requests  # 동기식 HTTP 요청용
+import requests
 from dotenv import load_dotenv
 import uuid
 
@@ -24,13 +24,13 @@ API_KEY_CYCLE = itertools.cycle(API_KEYS) if API_KEYS else None
 app = Flask(__name__)
 app.secret_key = os.urandom(24)
 
-# 이미지 저장 디렉토리 생성
-UPLOAD_FOLDER = 'static/uploads'
-RESULT_FOLDER = 'static/results'
+# 임시 디렉토리 사용 (허깅페이스 스페이스에서 쓰기 가능한 유일한 곳)
+UPLOAD_FOLDER = '/tmp/uploads'
+RESULT_FOLDER = '/tmp/results'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(RESULT_FOLDER, exist_ok=True)
 
-# 메모리에 저장할 데이터 (실제로는 DB 사용)
+# 메모리에 저장할 데이터
 image_gallery = []
 
 def make_headers():
@@ -99,6 +99,26 @@ def gallery():
     
     return render_template('gallery.html', images=sorted_gallery, current_sort=sort_by)
 
+# 임시 파일 서빙을 위한 라우트
+@app.route('/user_content/<filename>')
+def serve_user_content(filename):
+    """임시 디렉토리의 이미지 파일을 서빙"""
+    try:
+        # 업로드된 이미지 확인
+        upload_path = os.path.join(UPLOAD_FOLDER, filename)
+        if os.path.exists(upload_path):
+            return send_file(upload_path, as_attachment=False)
+        
+        # 결과 이미지 확인
+        result_path = os.path.join(RESULT_FOLDER, filename)
+        if os.path.exists(result_path):
+            return send_file(result_path, as_attachment=False)
+        
+        return jsonify({'error': '파일을 찾을 수 없습니다.'}), 404
+    except Exception as e:
+        print(f"파일 서빙 에러: {e}")
+        return jsonify({'error': '파일 서빙 중 오류가 발생했습니다.'}), 500
+
 @app.route('/generate', methods=['POST'])
 def generate_image():
     try:
@@ -126,14 +146,15 @@ def generate_image():
                         }
                     })
                     
-                    # 업로드된 이미지 정보 저장
-                    file_id = str(uuid.uuid4())
-                    file_path = os.path.join(UPLOAD_FOLDER, f"{file_id}.png")
+                    # 업로드된 이미지를 임시 디렉토리에 저장
+                    file_id = f"{str(uuid.uuid4())}.png"
+                    file_path = os.path.join(UPLOAD_FOLDER, file_id)
                     with open(file_path, 'wb') as f:
                         f.write(image_bytes)
+                    
                     uploaded_images.append({
                         'filename': file.filename,
-                        'path': f"/static/uploads/{file_id}.png"
+                        'path': f"/user_content/{file_id}"  # 새로운 라우트로 변경
                     })
 
         payload = {
@@ -163,16 +184,16 @@ def generate_image():
                     base64_data = part["inlineData"]["data"]
                     image_data = base64.b64decode(base64_data)
                     
-                    # 결과 이미지 저장
-                    result_id = str(uuid.uuid4())
-                    result_path = os.path.join(RESULT_FOLDER, f"{result_id}.png")
+                    # 결과 이미지를 임시 디렉토리에 저장
+                    result_id = f"{str(uuid.uuid4())}.png"
+                    result_path = os.path.join(RESULT_FOLDER, result_id)
                     with open(result_path, 'wb') as f:
                         f.write(image_data)
-                    result_image_path = f"/static/results/{result_id}.png"
+                    result_image_path = f"/user_content/{result_id}"  # 새로운 라우트로 변경
                     
                     # 갤러리에 추가
                     gallery_item = {
-                        'id': result_id,
+                        'id': result_id.replace('.png', ''),  # .png 제거
                         'result_image': result_image_path,
                         'prompt': prompt,
                         'uploaded_images': uploaded_images,
@@ -218,23 +239,41 @@ def get_image_details(image_id):
 def not_found(error):
     if request.path.startswith('/generate') or request.path.startswith('/like') or request.path.startswith('/image'):
         return jsonify({'error': '요청한 리소스를 찾을 수 없습니다.'}), 404
-    return render_template('index.html'), 404  # 404 페이지 대신 메인으로
+    return render_template('index.html'), 404
 
 @app.errorhandler(500)
 def internal_error(error):
     print(f"500 에러 발생: {error}")
     if request.path.startswith('/generate') or request.path.startswith('/like') or request.path.startswith('/image'):
         return jsonify({'error': '서버 내부 오류가 발생했습니다.'}), 500
-    return render_template('index.html'), 500  # 500 페이지 대신 메인으로
+    return render_template('index.html'), 500
 
 # 헬스 체크 엔드포인트
 @app.route('/health')
 def health_check():
-    return jsonify({'status': 'healthy', 'gallery_count': len(image_gallery)})
+    return jsonify({
+        'status': 'healthy', 
+        'gallery_count': len(image_gallery),
+        'upload_dir': UPLOAD_FOLDER,
+        'result_dir': RESULT_FOLDER,
+        'upload_files': len(os.listdir(UPLOAD_FOLDER)) if os.path.exists(UPLOAD_FOLDER) else 0,
+        'result_files': len(os.listdir(RESULT_FOLDER)) if os.path.exists(RESULT_FOLDER) else 0
+    })
 
 if __name__ == '__main__':
     print("🚀 Flask 앱 시작 중...")
     print(f"📁 업로드 폴더: {UPLOAD_FOLDER}")
     print(f"📁 결과 폴더: {RESULT_FOLDER}")
     print(f"🔑 API 키 개수: {len(API_KEYS) if API_KEYS else 0}")
+    
+    # 디렉토리 권한 확인
+    try:
+        test_file = os.path.join(UPLOAD_FOLDER, 'test.txt')
+        with open(test_file, 'w') as f:
+            f.write('test')
+        os.remove(test_file)
+        print("✅ 파일 쓰기 권한 확인됨")
+    except Exception as e:
+        print(f"❌ 파일 쓰기 권한 없음: {e}")
+    
     app.run(host="0.0.0.0", port=7860, debug=True)
