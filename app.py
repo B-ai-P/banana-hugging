@@ -24,7 +24,7 @@ API_KEY_CYCLE = itertools.cycle(API_KEYS) if API_KEYS else None
 app = Flask(__name__)
 app.secret_key = os.urandom(24)
 
-# 임시 디렉토리 사용 (허깅페이스 스페이스에서 쓰기 가능한 유일한 곳)
+# 임시 디렉토리 사용
 UPLOAD_FOLDER = '/tmp/uploads'
 RESULT_FOLDER = '/tmp/results'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
@@ -32,6 +32,16 @@ os.makedirs(RESULT_FOLDER, exist_ok=True)
 
 # 메모리에 저장할 데이터
 image_gallery = []
+like_records = {}  # IP별 좋아요 기록 저장
+
+def get_client_ip():
+    """클라이언트 IP 주소 가져오기"""
+    if request.headers.get('X-Forwarded-For'):
+        return request.headers.get('X-Forwarded-For').split(',')[0].strip()
+    elif request.headers.get('X-Real-IP'):
+        return request.headers.get('X-Real-IP')
+    else:
+        return request.remote_addr
 
 def make_headers():
     headers = {"Content-Type": "application/json"}
@@ -83,6 +93,10 @@ def send_request_sync(payload):
 def index():
     return render_template('index.html')
 
+@app.route('/create')
+def create():
+    return render_template('create.html')
+
 @app.route('/gallery')
 def gallery():
     # 정렬 옵션
@@ -96,6 +110,14 @@ def gallery():
         sorted_gallery.sort(key=lambda x: x['likes'], reverse=True)
     else:  # newest (default)
         sorted_gallery.sort(key=lambda x: x['created_at'], reverse=True)
+    
+    # 현재 사용자 IP의 좋아요 기록 확인
+    client_ip = get_client_ip()
+    user_likes = like_records.get(client_ip, set())
+    
+    # 각 이미지에 현재 사용자가 좋아요했는지 표시
+    for item in sorted_gallery:
+        item['user_liked'] = item['id'] in user_likes
     
     return render_template('gallery.html', images=sorted_gallery, current_sort=sort_by)
 
@@ -154,7 +176,7 @@ def generate_image():
                     
                     uploaded_images.append({
                         'filename': file.filename,
-                        'path': f"/user_content/{file_id}"  # 새로운 라우트로 변경
+                        'path': f"/user_content/{file_id}"
                     })
 
         payload = {
@@ -189,7 +211,7 @@ def generate_image():
                     result_path = os.path.join(RESULT_FOLDER, result_id)
                     with open(result_path, 'wb') as f:
                         f.write(image_data)
-                    result_image_path = f"/user_content/{result_id}"  # 새로운 라우트로 변경
+                    result_image_path = f"/user_content/{result_id}"
                     
                     # 갤러리에 추가
                     gallery_item = {
@@ -221,20 +243,43 @@ def generate_image():
 
 @app.route('/like/<image_id>', methods=['POST'])
 def like_image(image_id):
+    client_ip = get_client_ip()
+    
+    # IP별 좋아요 기록 초기화
+    if client_ip not in like_records:
+        like_records[client_ip] = set()
+    
+    # 이미 좋아요한 이미지인지 확인
+    if image_id in like_records[client_ip]:
+        return jsonify({'error': '이미 좋아요를 누른 이미지입니다.', 'already_liked': True}), 400
+    
+    # 이미지 찾기 및 좋아요 증가
     for item in image_gallery:
         if item['id'] == image_id:
             item['likes'] += 1
-            return jsonify({'success': True, 'likes': item['likes']})
+            like_records[client_ip].add(image_id)
+            print(f"좋아요 추가: IP={client_ip}, Image={image_id}, Total={item['likes']}")
+            return jsonify({
+                'success': True, 
+                'likes': item['likes'],
+                'user_liked': True
+            })
+    
     return jsonify({'error': '이미지를 찾을 수 없습니다.'}), 404
 
 @app.route('/image/<image_id>')
 def get_image_details(image_id):
+    client_ip = get_client_ip()
+    user_likes = like_records.get(client_ip, set())
+    
     for item in image_gallery:
         if item['id'] == image_id:
-            return jsonify(item)
+            item_data = item.copy()
+            item_data['user_liked'] = image_id in user_likes
+            return jsonify(item_data)
     return jsonify({'error': '이미지를 찾을 수 없습니다.'}), 404
 
-# 에러 핸들러 추가
+# 에러 핸들러
 @app.errorhandler(404)
 def not_found(error):
     if request.path.startswith('/generate') or request.path.startswith('/like') or request.path.startswith('/image'):
@@ -248,32 +293,6 @@ def internal_error(error):
         return jsonify({'error': '서버 내부 오류가 발생했습니다.'}), 500
     return render_template('index.html'), 500
 
-# 헬스 체크 엔드포인트
-@app.route('/health')
-def health_check():
-    return jsonify({
-        'status': 'healthy', 
-        'gallery_count': len(image_gallery),
-        'upload_dir': UPLOAD_FOLDER,
-        'result_dir': RESULT_FOLDER,
-        'upload_files': len(os.listdir(UPLOAD_FOLDER)) if os.path.exists(UPLOAD_FOLDER) else 0,
-        'result_files': len(os.listdir(RESULT_FOLDER)) if os.path.exists(RESULT_FOLDER) else 0
-    })
-
 if __name__ == '__main__':
     print("🚀 Flask 앱 시작 중...")
-    print(f"📁 업로드 폴더: {UPLOAD_FOLDER}")
-    print(f"📁 결과 폴더: {RESULT_FOLDER}")
-    print(f"🔑 API 키 개수: {len(API_KEYS) if API_KEYS else 0}")
-    
-    # 디렉토리 권한 확인
-    try:
-        test_file = os.path.join(UPLOAD_FOLDER, 'test.txt')
-        with open(test_file, 'w') as f:
-            f.write('test')
-        os.remove(test_file)
-        print("✅ 파일 쓰기 권한 확인됨")
-    except Exception as e:
-        print(f"❌ 파일 쓰기 권한 없음: {e}")
-    
     app.run(host="0.0.0.0", port=7860, debug=True)
