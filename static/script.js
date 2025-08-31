@@ -31,7 +31,7 @@ document.addEventListener('DOMContentLoaded', function() {
             } else {
                 // 🎯 여러 방법으로 키 소진 체크
                 const checkNoKeys = (obj) => {
-                    const regex = /No Google AI keys available/i;
+                    const regex = /No.*Google AI keys available/i;
                     
                     // 1. 전체 객체를 문자열로 변환해서 체크
                     if (regex.test(JSON.stringify(obj))) {
@@ -61,7 +61,7 @@ document.addEventListener('DOMContentLoaded', function() {
             console.error('요청 오류:', error);
             
             // 🎯 에러도 동일하게 체크
-            const noKeysRegex = /No Google AI keys available/i;
+            const noKeysRegex = /No.*Google AI keys available/i;
             
             if (noKeysRegex.test(error.toString()) || noKeysRegex.test(error.message || '')) {
                 alert('🍽️ 급식소 배급이 종료되었습니다. 다음기회에!');
