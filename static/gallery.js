@@ -442,25 +442,34 @@ async function quickLike(event, imageId) {
         const data = await response.json();
 
         if (data.success) {
-            // 좋아요 수 업데이트
-            likeElement.textContent = `❤️ ${data.likes}`;
-            likeElement.classList.add('liked');
-            
-            // 다른 동일한 이미지들도 업데이트
-            document.querySelectorAll(`[data-image-id="${imageId}"]`).forEach(el => {
-                el.textContent = `❤️ ${data.likes}`;
-                el.classList.add('liked');
-            });
-            
-            console.log(`✅ 좋아요 성공: ${imageId} -> ${data.likes}개`);
-        } else {
-            if (data.already_liked) {
-                likeElement.classList.add('liked');
-                alert('이미 좋아요를 누른 이미지입니다!');
-            } else {
-                alert(data.error || '좋아요 처리 중 오류가 발생했습니다.');
-            }
-        }
+                    // 좋아요 수 업데이트
+                    likeElement.textContent = `❤️ ${data.likes}`;
+                    likeElement.classList.add('liked');
+                    
+                    // 다른 동일한 이미지들도 업데이트
+                    document.querySelectorAll(`[data-image-id="${imageId}"]`).forEach(el => {
+                        el.textContent = `❤️ ${data.likes}`;
+                        el.classList.add('liked');
+                    });
+                    
+                    console.log(`✅ 좋아요 성공: ${imageId} -> ${data.likes}개`);
+                } else {
+                    if (data.already_liked) {
+                        // 🎯 이미 좋아요 눌린 상태로 UI 업데이트
+                        likeElement.textContent = `❤️ ${data.likes || 0}`;
+                        likeElement.classList.add('liked');
+                        
+                        // 다른 동일한 이미지들도 업데이트
+                        document.querySelectorAll(`[data-image-id="${imageId}"]`).forEach(el => {
+                            el.textContent = `❤️ ${data.likes || 0}`;
+                            el.classList.add('liked');
+                        });
+                        
+                        alert('이미 하트를 누르셨습니다.');
+                    } else {
+                        alert(data.error || '좋아요 처리 중 오류가 발생했습니다.');
+                    }
+                }
     } catch (error) {
         console.error('좋아요 오류:', error);
         alert('좋아요 처리 중 오류가 발생했습니다.');
