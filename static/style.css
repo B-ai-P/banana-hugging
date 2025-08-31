@@ -117,6 +117,20 @@ body {
     }
 }
 
+/* 메인 콘텐츠 */
+.main-content {
+    margin-left: 240px;
+    flex: 1;
+    padding: 0;
+    background: #f8fafc;
+}
+
+.content-area {
+    padding: 40px;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
 /* 웰컴 섹션 */
 .welcome-section {
     margin-bottom: 40px;
