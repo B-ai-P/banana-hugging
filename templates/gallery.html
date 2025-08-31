@@ -3,66 +3,115 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>이미지 갤러리</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <title>챗붕이들 이미지 - 잼나나 급식소</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='midjourney-style.css') }}">
 </head>
 <body>
-    <div class="container">
-        <div class="gallery-header">
-            <h1>📸 챗붕이들이 만든 이미지</h1>
-            <button onclick="location.href='/'" class="back-btn">🏠 메인으로</button>
-        </div>
-
-        <div class="sort-buttons">
-            <button class="sort-btn {% if current_sort == 'newest' %}active{% endif %}" 
-                    onclick="location.href='?sort=newest'">최신순</button>
-            <button class="sort-btn {% if current_sort == 'oldest' %}active{% endif %}" 
-                    onclick="location.href='?sort=oldest'">오래된순</button>
-            <button class="sort-btn {% if current_sort == 'likes' %}active{% endif %}" 
-                    onclick="location.href='?sort=likes'">좋아요순</button>
-        </div>
-
-        <div class="gallery-grid">
-            {% for image in images %}
-            <div class="gallery-item" onclick="openModal('{{ image.id }}')">
-                <img src="{{ image.result_image }}" alt="생성된 이미지">
-                <div class="gallery-item-info">
-                    <span class="likes">❤️ {{ image.likes }}</span>
-                </div>
+    <div class="app">
+        <!-- 사이드바 -->
+        <div class="sidebar">
+            <div class="logo">
+                <h1>잼나나 급식소</h1>
             </div>
-            {% endfor %}
+            
+            <nav class="nav-menu">
+                <a href="/gallery" class="nav-item active">
+                    <span class="nav-icon">🖼️</span>
+                    <span class="nav-text">챗붕이들 이미지</span>
+                </a>
+                <a href="/" class="nav-item">
+                    <span class="nav-icon">✨</span>
+                    <span class="nav-text">생성</span>
+                </a>
+            </nav>
         </div>
 
-        {% if not images %}
-        <div class="empty-gallery">
-            <p>아직 생성된 이미지가 없습니다.</p>
-            <button onclick="location.href='/'" class="generate-btn">첫 이미지 만들기</button>
+        <!-- 메인 콘텐츠 -->
+        <div class="main-content">
+            <div class="content-area">
+                <!-- 헤더 -->
+                <div class="gallery-header">
+                    <h2>챗붕이들의 작품</h2>
+                    <div class="sort-controls">
+                        <button class="sort-btn {% if current_sort == 'newest' %}active{% endif %}" 
+                                onclick="location.href='?sort=newest'">최신순</button>
+                        <button class="sort-btn {% if current_sort == 'oldest' %}active{% endif %}" 
+                                onclick="location.href='?sort=oldest'">오래된순</button>
+                        <button class="sort-btn {% if current_sort == 'likes' %}active{% endif %}" 
+                                onclick="location.href='?sort=likes'">좋아요순</button>
+                    </div>
+                </div>
+
+                <!-- 마소너리 갤러리 -->
+                <div class="masonry-gallery" id="gallery">
+                    {% for image in images %}
+                    <div class="gallery-item" onclick="openModal('{{ image.id }}')">
+                        <div class="image-container">
+                            <img src="{{ image.result_image }}" alt="생성된 이미지" loading="lazy">
+                            <div class="image-overlay">
+                                <div class="like-info">
+                                    <span class="like-count">❤️ {{ image.likes }}</span>
+                                </div>
+                                <div class="image-prompt">
+                                    <p>{{ image.prompt[:50] }}{% if image.prompt|length > 50 %}...{% endif %}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+
+                {% if not images %}
+                <div class="empty-gallery">
+                    <div class="empty-content">
+                        <h3>아직 생성된 이미지가 없습니다</h3>
+                        <p>첫 번째 이미지를 만들어보세요!</p>
+                        <a href="/" class="create-first-btn">이미지 생성하기</a>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
         </div>
-        {% endif %}
     </div>
 
     <!-- 모달 -->
     <div id="imageModal" class="modal">
+        <div class="modal-overlay" onclick="closeModal()"></div>
         <div class="modal-content">
-            <span class="close">&times;</span>
+            <button class="modal-close" onclick="closeModal()">×</button>
+            
             <div class="modal-body">
                 <div class="modal-left">
                     <img id="modalImage" src="" alt="상세 이미지">
                 </div>
+                
                 <div class="modal-right">
                     <div class="modal-header">
-                        <span id="modalDate"></span>
-                        <button id="likeBtn" class="like-btn">❤️ <span id="likeCount">0</span></button>
+                        <span id="modalDate" class="creation-date"></span>
+                        <button id="likeBtn" class="like-button" onclick="likeImage()">
+                            <span class="heart-icon">❤️</span>
+                            <span id="likeCount">0</span>
+                        </button>
                     </div>
-                    <div class="modal-info">
-                        <div class="chat-item user">
-                            <strong>👤 사용자:</strong>
-                            <p id="modalPrompt"></p>
-                            <div id="modalImages" class="attached-images"></div>
+                    
+                    <div class="conversation">
+                        <div class="message user-message">
+                            <div class="message-header">
+                                <span class="author">👤 사용자</span>
+                            </div>
+                            <div class="message-content">
+                                <p id="modalPrompt"></p>
+                                <div id="modalImages" class="attached-images"></div>
+                            </div>
                         </div>
-                        <div class="chat-item ai">
-                            <strong>🤖 Gemini:</strong>
-                            <p id="modalResponse"></p>
+                        
+                        <div class="message ai-message">
+                            <div class="message-header">
+                                <span class="author">🤖 Gemini</span>
+                            </div>
+                            <div class="message-content">
+                                <p id="modalResponse"></p>
+                            </div>
                         </div>
                     </div>
                 </div>
