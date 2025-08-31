@@ -435,41 +435,34 @@ async function quickLike(event, imageId) {
             method: 'POST'
         });
         
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
-        
         const data = await response.json();
-
-        if (data.success) {
-                    // 좋아요 수 업데이트
-                    likeElement.textContent = `❤️ ${data.likes}`;
-                    likeElement.classList.add('liked');
-                    
-                    // 다른 동일한 이미지들도 업데이트
-                    document.querySelectorAll(`[data-image-id="${imageId}"]`).forEach(el => {
-                        el.textContent = `❤️ ${data.likes}`;
-                        el.classList.add('liked');
-                    });
-                    
-                    console.log(`✅ 좋아요 성공: ${imageId} -> ${data.likes}개`);
-                } else {
-                    if (data.already_liked) {
-                        // 🎯 이미 좋아요 눌린 상태로 UI 업데이트
-                        likeElement.textContent = `❤️ ${data.likes || 0}`;
-                        likeElement.classList.add('liked');
-                        
-                        // 다른 동일한 이미지들도 업데이트
-                        document.querySelectorAll(`[data-image-id="${imageId}"]`).forEach(el => {
-                            el.textContent = `❤️ ${data.likes || 0}`;
-                            el.classList.add('liked');
-                        });
-                        
-                        alert('이미 하트를 누르셨습니다.');
-                    } else {
-                        alert(data.error || '좋아요 처리 중 오류가 발생했습니다.');
-                    }
-                }
+        
+        if (response.ok && data.success) {
+            // 성공 처리
+            likeElement.textContent = `❤️ ${data.likes}`;
+            likeElement.classList.add('liked');
+            
+            document.querySelectorAll(`[data-image-id="${imageId}"]`).forEach(el => {
+                el.textContent = `❤️ ${data.likes}`;
+                el.classList.add('liked');
+            });
+            
+            console.log(`✅ 좋아요 성공: ${imageId} -> ${data.likes}개`);
+        } else if (data.already_liked || (data.error && data.error.includes('already'))) {
+            // 이미 좋아요 처리
+            likeElement.textContent = `❤️ ${data.likes || 0}`;
+            likeElement.classList.add('liked');
+            
+            document.querySelectorAll(`[data-image-id="${imageId}"]`).forEach(el => {
+                el.textContent = `❤️ ${data.likes || 0}`;
+                el.classList.add('liked');
+            });
+            
+            alert('이미 하트를 누르셨습니다.');
+        } else {
+            // 진짜 오류
+            throw new Error(data.error || `HTTP ${response.status}: ${response.statusText}`);
+        }
     } catch (error) {
         console.error('좋아요 오류:', error);
         alert('좋아요 처리 중 오류가 발생했습니다.');
