@@ -4,19 +4,17 @@ let currentPage = 1;
 let currentSort = 'newest';
 let isLoading = false;
 let hasMore = true;
-let masonryInstance = null;
 
-// 마소너리 레이아웃 클래스
-class HorizontalMasonry {
+// 행별 그리드 레이아웃 클래스
+class RowGridLayout {
     constructor(container, options = {}) {
         this.container = container;
-        this.items = [];
-        this.columns = this.getColumns();
-        this.columnHeights = new Array(this.columns).fill(0);
-        this.gap = options.gap || 16;
-        this.resizeTimeout = null; // 디바운싱용
+        this.itemsPerRow = this.getItemsPerRow();
+        this.currentRow = null;
+        this.itemsInCurrentRow = 0;
+        this.resizeTimeout = null;
         
-        // 리사이즈 이벤트 (디바운싱 추가)
+        // 리사이즈 이벤트
         window.addEventListener('resize', () => {
             clearTimeout(this.resizeTimeout);
             this.resizeTimeout = setTimeout(() => {
@@ -25,106 +23,70 @@ class HorizontalMasonry {
         });
     }
     
-    getColumns() {
+    getItemsPerRow() {
         const width = window.innerWidth;
         if (width <= 480) return 1;
-        if (width <= 768) return 2;
+        if (width <= 768) return 2; 
         if (width <= 1200) return 3;
         return 4;
     }
     
     addItem(element) {
-        this.items.push(element);
-        this.container.appendChild(element); // DOM에 추가
-        this.positionItem(element, this.items.length - 1);
-    }
-    
-    positionItem(element, index) {
-        // 가로 우선 배치 로직
-        const columnIndex = index % this.columns;
-        const containerWidth = this.container.offsetWidth;
-        
-        // 컨테이너 너비가 0이면 잠시 대기
-        if (containerWidth === 0) {
-            setTimeout(() => this.positionItem(element, index), 10);
-            return;
+        // 새 행이 필요한지 확인
+        if (!this.currentRow || this.itemsInCurrentRow >= this.itemsPerRow) {
+            this.createNewRow();
         }
         
-        const columnWidth = (containerWidth - (this.columns - 1) * this.gap) / this.columns;
-        
-        // X 위치 계산
-        const x = columnIndex * (columnWidth + this.gap);
-        
-        // Y 위치 계산 (해당 컬럼의 현재 높이)
-        const y = this.columnHeights[columnIndex];
-        
-        // 요소 위치 설정
-        element.style.left = `${x}px`;
-        element.style.top = `${y}px`;
-        element.style.width = `${columnWidth}px`;
-        
-        // 이미지 로드 후 높이 업데이트
-        const img = element.querySelector('img');
-        if (img) {
-            if (img.complete && img.naturalHeight !== 0) {
-                this.updateColumnHeight(columnIndex, element);
-            } else {
-                img.onload = () => {
-                    this.updateColumnHeight(columnIndex, element);
-                };
-                // 로딩 실패시에도 높이 업데이트
-                img.onerror = () => {
-                    this.updateColumnHeight(columnIndex, element);
-                };
-            }
-        } else {
-            // 이미지가 없는 경우에도 높이 업데이트
-            this.updateColumnHeight(columnIndex, element);
-        }
+        this.currentRow.appendChild(element);
+        this.itemsInCurrentRow++;
     }
     
-    updateColumnHeight(columnIndex, element) {
-        const elementHeight = element.offsetHeight;
-        this.columnHeights[columnIndex] += elementHeight + this.gap;
-        
-        // 컨테이너 높이 업데이트
-        const maxHeight = Math.max(...this.columnHeights);
-        this.container.style.height = `${maxHeight}px`;
+    createNewRow() {
+        this.currentRow = document.createElement('div');
+        this.currentRow.className = 'gallery-row';
+        this.container.appendChild(this.currentRow);
+        this.itemsInCurrentRow = 0;
     }
     
     clear() {
-        this.items = [];
-        this.columnHeights = new Array(this.columns).fill(0);
-        this.container.style.height = '0px';
         this.container.innerHTML = '';
+        this.currentRow = null;
+        this.itemsInCurrentRow = 0;
     }
     
     handleResize() {
-        const newColumns = this.getColumns();
-        if (newColumns !== this.columns) {
-            this.columns = newColumns;
-            this.columnHeights = new Array(this.columns).fill(0);
+        const newItemsPerRow = this.getItemsPerRow();
+        if (newItemsPerRow !== this.itemsPerRow) {
+            this.itemsPerRow = newItemsPerRow;
             this.relayout();
         }
     }
     
     relayout() {
-        this.columnHeights = new Array(this.columns).fill(0);
-        this.items.forEach((item, index) => {
-            this.positionItem(item, index);
+        // 모든 아이템 수집
+        const allItems = Array.from(this.container.querySelectorAll('.gallery-item'));
+        
+        // 컨테이너 초기화
+        this.clear();
+        
+        // 아이템들을 새로운 행 구조로 재배치
+        allItems.forEach(item => {
+            this.addItem(item);
         });
     }
 }
 
+let gridInstance = null;
+
 document.addEventListener('DOMContentLoaded', function() {
-    // 마소너리 인스턴스 생성
+    // 그리드 인스턴스 생성
     const gallery = document.getElementById('gallery');
     if (!gallery) {
         console.error('Gallery container not found!');
         return;
     }
     
-    masonryInstance = new HorizontalMasonry(gallery, { gap: 16 });
+    gridInstance = new RowGridLayout(gallery);
     
     // 초기 이미지 로드
     loadImages(true);
@@ -132,30 +94,26 @@ document.addEventListener('DOMContentLoaded', function() {
     // 정렬 버튼 이벤트
     document.querySelectorAll('.sort-btn').forEach(btn => {
         btn.addEventListener('click', function() {
-            // 이미 활성화된 버튼이면 리턴
             if (this.classList.contains('active')) return;
             
-            // 활성 상태 변경
             document.querySelectorAll('.sort-btn').forEach(b => b.classList.remove('active'));
             this.classList.add('active');
             
-            // 정렬 변경 및 새로고침
             currentSort = this.dataset.sort;
             currentPage = 1;
             hasMore = true;
-            masonryInstance.clear();
+            gridInstance.clear();
             loadImages(true);
         });
     });
     
-    // 스크롤 이벤트 (성능 최적화)
+    // 스크롤 이벤트
     let ticking = false;
     let lastScrollTop = 0;
     
     window.addEventListener('scroll', function() {
         const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
         
-        // 스크롤 방향 체크 (아래로만)
         if (scrollTop > lastScrollTop && !ticking) {
             requestAnimationFrame(() => {
                 if (isLoading || !hasMore) {
@@ -163,7 +121,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     return;
                 }
                 
-                // 더 일찍 로드 시작 (1500px 전에)
                 if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 1500) {
                     loadImages(false);
                 }
@@ -204,7 +161,7 @@ async function loadImages(isInitial = false) {
         const data = await response.json();
         
         if (data.images && data.images.length > 0) {
-            await appendImagesWithMasonry(data.images);
+            await appendImagesWithGrid(data.images);
             
             hasMore = data.has_more;
             currentPage++;
@@ -221,7 +178,6 @@ async function loadImages(isInitial = false) {
     } catch (error) {
         console.error('이미지 로드 오류:', error);
         
-        // 사용자 친화적 오류 메시지
         if (error.message.includes('401')) {
             alert('로그인이 필요합니다. 페이지를 새로고침하세요.');
             window.location.reload();
@@ -234,7 +190,7 @@ async function loadImages(isInitial = false) {
     }
 }
 
-async function appendImagesWithMasonry(images) {
+async function appendImagesWithGrid(images) {
     const imagePromises = images.map((image, index) => {
         return new Promise((resolve) => {
             const galleryItem = document.createElement('div');
@@ -256,8 +212,8 @@ async function appendImagesWithMasonry(images) {
                 </div>
             `;
             
-            // 마소너리에 추가
-            masonryInstance.addItem(galleryItem);
+            // 그리드에 추가
+            gridInstance.addItem(galleryItem);
             
             // 이미지 미리 로드
             const img = galleryItem.querySelector('img');
@@ -266,6 +222,18 @@ async function appendImagesWithMasonry(images) {
             
             const preloadImg = new Image();
             preloadImg.onload = () => {
+                // 이미지 비율 계산
+                const ratio = preloadImg.width / preloadImg.height;
+                
+                // 비율에 따라 클래스 추가
+                if (ratio > 1.3) {
+                    container.classList.add('landscape');
+                } else if (ratio < 0.8) {
+                    container.classList.add('portrait');
+                } else {
+                    container.classList.add('square');
+                }
+                
                 img.src = image.result_image;
                 img.style.display = 'block';
                 
@@ -277,11 +245,6 @@ async function appendImagesWithMasonry(images) {
                     
                     // 클릭 이벤트 추가
                     galleryItem.onclick = () => openModal(image.id);
-                    
-                    // 마소너리 높이 업데이트 (약간의 지연)
-                    setTimeout(() => {
-                        masonryInstance.relayout();
-                    }, 100);
                 }, 50);
                 
                 resolve();
@@ -296,17 +259,16 @@ async function appendImagesWithMasonry(images) {
                 resolve();
             };
             
-            // 순차적 로딩 (자연스러운 효과)
             setTimeout(() => {
                 preloadImg.src = image.result_image;
             }, index * 50);
         });
     });
     
-    // 모든 이미지 처리 완료까지 기다리지 않음
     return Promise.resolve();
 }
 
+// 나머지 함수들 (openModal, closeModal, likeImage, formatDate)는 기존과 동일하게 유지
 async function openModal(imageId) {
     if (!imageId) return;
     
@@ -412,7 +374,6 @@ async function likeImage() {
             likeBtn.style.borderColor = '#fca5a5';
             likeBtn.style.color = '#dc2626';
             
-            // 갤러리의 좋아요 수도 업데이트
             const galleryItems = document.querySelectorAll('.gallery-item');
             galleryItems.forEach(item => {
                 const img = item.querySelector('img');
@@ -442,12 +403,10 @@ function formatDate(dateString) {
     try {
         const date = new Date(dateString);
         
-        // 유효한 날짜인지 체크
         if (isNaN(date.getTime())) {
-            return dateString; // 원본 반환
+            return dateString;
         }
         
-        // 한국 시간대로 강제 변환
         const options = {
             timeZone: 'Asia/Seoul',
             year: 'numeric',
