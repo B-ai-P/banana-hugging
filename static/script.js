@@ -21,19 +21,30 @@ document.addEventListener('DOMContentLoaded', function() {
                 method: 'POST',
                 body: formData
             });
-
+        
             const data = await response.json();
-
+        
             if (data.success) {
                 document.getElementById('resultImage').src = data.result_image;
                 document.getElementById('resultText').textContent = data.response_text || 'AI가 이미지를 생성했습니다.';
                 result.classList.remove('hidden');
             } else {
-                alert('오류: ' + data.error);
+                // 🎯 Google AI 키 소진 체크
+                if (data.error && data.error.includes('No Google AI keys available')) {
+                    alert('🍽️ 급식소 배급이 종료되었습니다. 다음기회에!');
+                } else {
+                    alert('오류: ' + data.error);
+                }
             }
         } catch (error) {
             console.error('요청 오류:', error);
-            alert('요청 중 오류가 발생했습니다: ' + error.message);
+            
+            // 🎯 에러 메시지에서도 체크
+            if (error.message && error.message.includes('No Google AI keys available')) {
+                alert('🍽️ 급식소 배급이 종료되었습니다. 다음기회에!');
+            } else {
+                alert('요청 중 오류가 발생했습니다: ' + error.message);
+            }
         } finally {
             loading.classList.add('hidden');
             generateBtn.disabled = false;
