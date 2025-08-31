@@ -314,7 +314,16 @@ def generate_image():
             ]
         }
 
-        data = send_request_sync(payload)
+        try:
+            data = send_request_sync(payload)
+        except Exception as api_error:
+            error_msg = str(api_error)
+            # Google AI 키 관련 에러는 원본 메시지 그대로 전달
+            if "No Google AI keys available" in error_msg or "No billing-enabled Google AI keys available" in error_msg:
+                return jsonify({'error': error_msg}), 500
+            else:
+                # 다른 에러는 기존대로
+                raise api_error
         response_text = ""
         result_image_path = None
 
