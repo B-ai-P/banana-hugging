@@ -26,6 +26,8 @@ body {
     height: 100vh;
     overflow-y: auto;
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    display: flex;
+    flex-direction: column;
 }
 
 .logo h1 {
@@ -42,6 +44,7 @@ body {
     display: flex;
     flex-direction: column;
     gap: 8px;
+    flex: 1;
 }
 
 .nav-item {
@@ -70,12 +73,11 @@ body {
     font-size: 18px;
 }
 
-/* 사이드바 하단 */
+/* 사이드바 하단 로그아웃 */
 .sidebar-footer {
-    position: absolute;
-    bottom: 20px;
-    left: 20px;
-    right: 20px;
+    margin-top: auto;
+    padding-top: 20px;
+    border-top: 1px solid #e2e8f0;
 }
 
 .logout-btn {
@@ -90,25 +92,29 @@ body {
     font-weight: 500;
     border: 1px solid #fee2e2;
     background: #fef2f2;
+    font-size: 14px;
 }
 
 .logout-btn:hover {
     background: #fee2e2;
     border-color: #fecaca;
+    transform: translateY(-1px);
 }
 
-/* 메인 콘텐츠 */
-.main-content {
-    margin-left: 240px;
-    flex: 1;
-    padding: 0;
-    background: #f8fafc;
+.logout-btn .nav-icon {
+    font-size: 16px;
 }
 
-.content-area {
-    padding: 40px;
-    max-width: 1200px;
-    margin: 0 auto;
+/* 반응형에서 로그아웃 버튼 */
+@media (max-width: 480px) {
+    .logout-btn .nav-text {
+        display: none;
+    }
+    
+    .logout-btn {
+        justify-content: center;
+        padding: 12px;
+    }
 }
 
 /* 웰컴 섹션 */
