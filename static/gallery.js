@@ -203,7 +203,7 @@ async function appendImagesWithGrid(images) {
                     <img src="" alt="생성된 이미지" style="display: none;">
                     <div class="image-overlay">
                         <div class="like-info">
-                            <span class="like-count">❤️ ${image.likes || 0}</span>
+                            <span class="like-count clickable-like" data-image-id="${image.id}" onclick="quickLike(event, '${image.id}')">❤️ ${image.likes || 0}</span>
                         </div>
                         <div class="image-prompt">
                             <p>${image.prompt && image.prompt.length > 50 ? image.prompt.substring(0, 50) + '...' : (image.prompt || '')}</p>
