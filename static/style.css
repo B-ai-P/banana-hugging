@@ -474,53 +474,56 @@ body {
     color: #ffffff;
 }
 
-/* 마소너리 갤러리 - JavaScript 기반 */
+/* 그리드 갤러리 - 행 정렬 방식 */
 .masonry-gallery {
-    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 24px; /* 행 간격 (빨간선 역할) */
     width: 100%;
     margin-bottom: 40px;
 }
 
+.gallery-row {
+    display: flex;
+    gap: 16px; /* 열 간격 */
+    align-items: flex-start;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    border-bottom: 2px solid #f1f5f9; /* 행 구분선 */
+    padding-bottom: 16px;
+}
+
+.gallery-row:last-child {
+    border-bottom: none;
+}
+
 .gallery-item {
-    position: absolute;
+    position: relative;
     cursor: pointer;
     transition: all 0.3s ease;
-    width: calc(25% - 12px); /* 4열 기준 */
+    flex: 0 0 auto;
+    max-width: 280px; /* 기본 박스 최대 크기 */
+    min-width: 200px; /* 기본 박스 최소 크기 */
 }
 
-@media (max-width: 1200px) {
-    .gallery-item {
-        width: calc(33.333% - 11px); /* 3열 */
-    }
-}
-
-@media (max-width: 768px) {
-    .gallery-item {
-        width: calc(50% - 8px); /* 2열 */
-    }
-}
-
-@media (max-width: 480px) {
-    .gallery-item {
-        width: 100%; /* 1열 */
-    }
+.gallery-item:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 25px -3px rgba(0, 0, 0, 0.15);
 }
 
 .image-container {
     position: relative;
     background: #ffffff;
-    border-radius: 8px;
+    border-radius: 12px;
     overflow: hidden;
-    border: 1px solid #e2e8f0;
+    border: 2px solid #e2e8f0;
     transition: all 0.2s ease;
-    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
-    margin-bottom: 16px;
+    box-shadow: 0 2px 8px 0 rgba(0, 0, 0, 0.1);
 }
 
 .image-container:hover {
     border-color: #3b82f6;
-    transform: translateY(-2px);
-    box-shadow: 0 10px 25px -3px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 8px 20px -3px rgba(0, 0, 0, 0.2);
 }
 
 .image-container img {
@@ -529,6 +532,31 @@ body {
     display: block;
     opacity: 0;
     transition: opacity 0.3s ease;
+    
+    /* 이미지 크기 제한 */
+    max-height: 400px;
+    min-height: 180px;
+    object-fit: cover;
+}
+
+/* 세로로 긴 이미지 조정 */
+.image-container.portrait img {
+    height: 320px;
+    object-fit: cover;
+}
+
+/* 가로로 긴 이미지 조정 */
+.image-container.landscape img {
+    height: 200px;
+    object-fit: cover;
+    width: 100%;
+    min-width: 280px;
+}
+
+/* 정사각형 이미지 */
+.image-container.square img {
+    height: 240px;
+    object-fit: cover;
 }
 
 .image-container img.loaded {
@@ -546,7 +574,7 @@ body {
     background-size: 200% 100%;
     animation: shimmer 2s infinite;
     z-index: 1;
-    aspect-ratio: 1; /* 정사각형 스켈레톤 */
+    height: 240px; /* 고정 높이 스켈레톤 */
 }
 
 .image-container.loaded::before {
@@ -558,7 +586,7 @@ body {
     bottom: 0;
     left: 0;
     right: 0;
-    background: linear-gradient(transparent, rgba(0, 0, 0, 0.8));
+    background: linear-gradient(transparent, rgba(0, 0, 0, 0.85));
     padding: 16px;
     opacity: 0;
     transition: opacity 0.2s ease;
@@ -575,34 +603,58 @@ body {
 }
 
 .like-count {
-    background: rgba(0, 0, 0, 0.6);
-    padding: 4px 8px;
-    border-radius: 12px;
+    background: rgba(0, 0, 0, 0.7);
+    padding: 6px 10px;
+    border-radius: 20px;
     font-size: 12px;
     color: #ffffff;
+    font-weight: 600;
 }
 
 .image-prompt {
     color: #ffffff;
-    font-size: 12px;
+    font-size: 13px;
     line-height: 1.4;
 }
 
 .image-prompt p {
     margin: 0;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
 }
 
-.image-loading-text {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    color: #94a3b8;
-    font-size: 12px;
-    z-index: 2;
-    background: rgba(255, 255, 255, 0.9);
-    padding: 4px 8px;
-    border-radius: 4px;
+/* 반응형 조정 */
+@media (max-width: 1200px) {
+    .gallery-item {
+        max-width: 240px;
+        min-width: 180px;
+    }
+}
+
+@media (max-width: 768px) {
+    .masonry-gallery {
+        gap: 20px;
+    }
+    
+    .gallery-row {
+        gap: 12px;
+        justify-content: center;
+    }
+    
+    .gallery-item {
+        max-width: 300px;
+        min-width: 160px;
+    }
+}
+
+@media (max-width: 480px) {
+    .gallery-row {
+        justify-content: center;
+    }
+    
+    .gallery-item {
+        max-width: 280px;
+        min-width: 280px;
+    }
 }
 
 /* 빈 갤러리 */
