@@ -25,7 +25,7 @@
                 </a>
             </nav>
 
-            <!-- 로그아웃 버튼 - 사이드바 맨 아래 -->
+            <!-- 로그아웃 버튼 -->
             <div class="sidebar-footer">
                 <a href="/logout" class="logout-btn">
                     <span class="nav-icon">🚪</span>
@@ -41,43 +41,36 @@
                 <div class="gallery-header">
                     <h2>챗붕이들의 작품</h2>
                     <div class="sort-controls">
-                        <button class="sort-btn {% if current_sort == 'newest' %}active{% endif %}" 
-                                onclick="location.href='?sort=newest'">최신순</button>
-                        <button class="sort-btn {% if current_sort == 'oldest' %}active{% endif %}" 
-                                onclick="location.href='?sort=oldest'">오래된순</button>
-                        <button class="sort-btn {% if current_sort == 'likes' %}active{% endif %}" 
-                                onclick="location.href='?sort=likes'">좋아요순</button>
+                        <button class="sort-btn active" data-sort="newest">최신순</button>
+                        <button class="sort-btn" data-sort="oldest">오래된순</button>
+                        <button class="sort-btn" data-sort="likes">좋아요순</button>
                     </div>
                 </div>
 
                 <!-- 마소너리 갤러리 -->
                 <div class="masonry-gallery" id="gallery">
-                    {% for image in images %}
-                    <div class="gallery-item" onclick="openModal('{{ image.id }}')">
-                        <div class="image-container">
-                            <img src="{{ image.result_image }}" alt="생성된 이미지" loading="lazy">
-                            <div class="image-overlay">
-                                <div class="like-info">
-                                    <span class="like-count">❤️ {{ image.likes }}</span>
-                                </div>
-                                <div class="image-prompt">
-                                    <p>{{ image.prompt[:50] }}{% if image.prompt|length > 50 %}...{% endif %}</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    {% endfor %}
+                    <!-- 이미지들이 여기에 동적으로 추가됩니다 -->
                 </div>
 
-                {% if not images %}
-                <div class="empty-gallery">
+                <!-- 로딩 인디케이터 -->
+                <div id="loadingMore" class="loading-more hidden">
+                    <div class="loading-spinner-small"></div>
+                    <p>더 많은 이미지를 불러오는 중...</p>
+                </div>
+
+                <!-- 빈 갤러리 -->
+                <div id="emptyGallery" class="empty-gallery hidden">
                     <div class="empty-content">
                         <h3>아직 생성된 이미지가 없습니다</h3>
                         <p>첫 번째 이미지를 만들어보세요!</p>
                         <a href="/" class="create-first-btn">이미지 생성하기</a>
                     </div>
                 </div>
-                {% endif %}
+
+                <!-- 끝까지 도달 메시지 -->
+                <div id="endMessage" class="end-message hidden">
+                    <p>🎉 모든 이미지를 확인했습니다!</p>
+                </div>
             </div>
         </div>
     </div>
