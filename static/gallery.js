@@ -4,8 +4,104 @@ let currentPage = 1;
 let currentSort = 'newest';
 let isLoading = false;
 let hasMore = true;
+let masonryInstance = null;
+
+// 마소너리 레이아웃 클래스
+class HorizontalMasonry {
+    constructor(container, options = {}) {
+        this.container = container;
+        this.items = [];
+        this.columns = this.getColumns();
+        this.columnHeights = new Array(this.columns).fill(0);
+        this.gap = options.gap || 16;
+        
+        // 리사이즈 이벤트
+        window.addEventListener('resize', () => {
+            this.handleResize();
+        });
+    }
+    
+    getColumns() {
+        const width = window.innerWidth;
+        if (width <= 480) return 1;
+        if (width <= 768) return 2;
+        if (width <= 1200) return 3;
+        return 4;
+    }
+    
+    addItem(element) {
+        this.items.push(element);
+        this.positionItem(element, this.items.length - 1);
+    }
+    
+    positionItem(element, index) {
+        // 가로 우선 배치 로직
+        const columnIndex = index % this.columns;
+        const columnWidth = (this.container.offsetWidth - (this.columns - 1) * this.gap) / this.columns;
+        
+        // X 위치 계산
+        const x = columnIndex * (columnWidth + this.gap);
+        
+        // Y 위치 계산 (해당 컬럼의 현재 높이)
+        const y = this.columnHeights[columnIndex];
+        
+        // 요소 위치 설정
+        element.style.left = `${x}px`;
+        element.style.top = `${y}px`;
+        element.style.width = `${columnWidth}px`;
+        
+        // 이미지 로드 후 높이 업데이트
+        const img = element.querySelector('img');
+        if (img) {
+            if (img.complete) {
+                this.updateColumnHeight(columnIndex, element);
+            } else {
+                img.onload = () => {
+                    this.updateColumnHeight(columnIndex, element);
+                };
+            }
+        }
+    }
+    
+    updateColumnHeight(columnIndex, element) {
+        const rect = element.getBoundingClientRect();
+        const elementHeight = element.offsetHeight;
+        this.columnHeights[columnIndex] += elementHeight + this.gap;
+        
+        // 컨테이너 높이 업데이트
+        const maxHeight = Math.max(...this.columnHeights);
+        this.container.style.height = `${maxHeight}px`;
+    }
+    
+    clear() {
+        this.items = [];
+        this.columnHeights = new Array(this.columns).fill(0);
+        this.container.style.height = '0px';
+        this.container.innerHTML = '';
+    }
+    
+    handleResize() {
+        const newColumns = this.getColumns();
+        if (newColumns !== this.columns) {
+            this.columns = newColumns;
+            this.columnHeights = new Array(this.columns).fill(0);
+            this.relayout();
+        }
+    }
+    
+    relayout() {
+        this.columnHeights = new Array(this.columns).fill(0);
+        this.items.forEach((item, index) => {
+            this.positionItem(item, index);
+        });
+    }
+}
 
 document.addEventListener('DOMContentLoaded', function() {
+    // 마소너리 인스턴스 생성
+    const gallery = document.getElementById('gallery');
+    masonryInstance = new HorizontalMasonry(gallery, { gap: 16 });
+    
     // 초기 이미지 로드
     loadImages(true);
     
@@ -20,12 +116,12 @@ document.addEventListener('DOMContentLoaded', function() {
             currentSort = this.dataset.sort;
             currentPage = 1;
             hasMore = true;
-            document.getElementById('gallery').innerHTML = '';
+            masonryInstance.clear();
             loadImages(true);
         });
     });
     
-    // 스크롤 이벤트 (더 부드럽게)
+    // 스크롤 이벤트
     let ticking = false;
     window.addEventListener('scroll', function() {
         if (!ticking) {
@@ -35,7 +131,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     return;
                 }
                 
-                // 더 일찍 로드 시작 (1500px 전에)
                 if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 1500) {
                     loadImages(false);
                 }
@@ -70,22 +165,17 @@ async function loadImages(isInitial = false) {
         const data = await response.json();
         
         if (data.images && data.images.length > 0) {
-            // 스켈레톤 먼저 표시하고 이미지 로드
-            await appendImagesWithSkeleton(data.images);
+            await appendImagesWithMasonry(data.images);
             
-            // 상태 업데이트
             hasMore = data.has_more;
             currentPage++;
             
-            // 빈 갤러리 메시지 숨기기
             emptyGallery.classList.add('hidden');
             
-            // 더 이상 이미지가 없으면 끝 메시지 표시
             if (!hasMore) {
                 endMessage.classList.remove('hidden');
             }
         } else if (isInitial) {
-            // 초기 로드에서 이미지가 없으면 빈 갤러리 표시
             emptyGallery.classList.remove('hidden');
         }
         
@@ -98,41 +188,38 @@ async function loadImages(isInitial = false) {
     }
 }
 
-async function appendImagesWithSkeleton(images) {
-    const gallery = document.getElementById('gallery');
-    
-    // 스켈레톤과 실제 이미지를 동시에 처리
+async function appendImagesWithMasonry(images) {
     const imagePromises = images.map(async (image, index) => {
-        const galleryItem = document.createElement('div');
-        galleryItem.className = 'gallery-item';
-        
-        // 스켈레톤을 먼저 표시
-        galleryItem.innerHTML = `
-            <div class="image-container loading">
-                <div class="image-loading-text">로딩중...</div>
-                <img src="" alt="생성된 이미지" style="display: none;">
-                <div class="image-overlay">
-                    <div class="like-info">
-                        <span class="like-count">❤️ ${image.likes}</span>
-                    </div>
-                    <div class="image-prompt">
-                        <p>${image.prompt.length > 50 ? image.prompt.substring(0, 50) + '...' : image.prompt}</p>
+        return new Promise((resolve) => {
+            const galleryItem = document.createElement('div');
+            galleryItem.className = 'gallery-item';
+            
+            // 스켈레톤 먼저 표시
+            galleryItem.innerHTML = `
+                <div class="image-container loading">
+                    <div class="image-loading-text">로딩중...</div>
+                    <img src="" alt="생성된 이미지" style="display: none;">
+                    <div class="image-overlay">
+                        <div class="like-info">
+                            <span class="like-count">❤️ ${image.likes}</span>
+                        </div>
+                        <div class="image-prompt">
+                            <p>${image.prompt.length > 50 ? image.prompt.substring(0, 50) + '...' : image.prompt}</p>
+                        </div>
                     </div>
                 </div>
-            </div>
-        `;
-        
-        gallery.appendChild(galleryItem);
-        
-        // 이미지 미리 로드
-        return new Promise((resolve) => {
+            `;
+            
+            // 마소너리에 추가
+            masonryInstance.addItem(galleryItem);
+            
+            // 이미지 미리 로드
             const img = galleryItem.querySelector('img');
             const container = galleryItem.querySelector('.image-container');
             const loadingText = galleryItem.querySelector('.image-loading-text');
             
             const preloadImg = new Image();
             preloadImg.onload = () => {
-                // 이미지 로드 완료 시 부드럽게 전환
                 img.src = image.result_image;
                 img.style.display = 'block';
                 
@@ -144,28 +231,28 @@ async function appendImagesWithSkeleton(images) {
                     
                     // 클릭 이벤트 추가
                     galleryItem.onclick = () => openModal(image.id);
+                    
+                    // 마소너리 높이 업데이트
+                    setTimeout(() => {
+                        masonryInstance.relayout();
+                    }, 50);
                 }, 50);
                 
                 resolve();
             };
             
             preloadImg.onerror = () => {
-                // 이미지 로드 실패 시
                 loadingText.textContent = '로드 실패';
                 loadingText.style.color = '#ef4444';
                 container.classList.remove('loading');
                 resolve();
             };
             
-            // 실제 이미지 로드 시작 (약간 지연으로 자연스럽게)
             setTimeout(() => {
                 preloadImg.src = image.result_image;
-            }, index * 100); // 0.1초씩 지연해서 자연스럽게
+            }, index * 50);
         });
     });
-    
-    // 모든 이미지 로딩 완료까지 기다리지 않고 바로 리턴
-    // (백그라운드에서 계속 로딩됨)
 }
 
 async function openModal(imageId) {
@@ -176,7 +263,6 @@ async function openModal(imageId) {
         const data = await response.json();
 
         if (response.ok) {
-            // 모달 이미지도 미리 로드
             const modalImg = document.getElementById('modalImage');
             const preloadImg = new Image();
             
@@ -185,8 +271,7 @@ async function openModal(imageId) {
                 modalImg.style.opacity = '1';
             };
             
-            // 모달 내용 채우기
-            modalImg.style.opacity = '0.5'; // 로딩 중 표시
+            modalImg.style.opacity = '0.5';
             preloadImg.src = data.result_image;
             
             document.getElementById('modalDate').textContent = formatDate(data.created_at);
@@ -194,7 +279,6 @@ async function openModal(imageId) {
             document.getElementById('modalPrompt').textContent = data.prompt;
             document.getElementById('modalResponse').textContent = data.response_text || 'AI가 이미지를 생성했습니다.';
 
-            // 좋아요 버튼 상태 업데이트
             const likeBtn = document.getElementById('likeBtn');
             if (data.user_liked) {
                 likeBtn.classList.add('liked', 'disabled');
@@ -208,7 +292,6 @@ async function openModal(imageId) {
                 likeBtn.style.color = '#475569';
             }
 
-            // 첨부 이미지들 표시
             const modalImages = document.getElementById('modalImages');
             modalImages.innerHTML = '';
             if (data.uploaded_images && data.uploaded_images.length > 0) {
@@ -256,7 +339,6 @@ async function likeImage() {
             likeBtn.style.borderColor = '#fca5a5';
             likeBtn.style.color = '#dc2626';
             
-            // 갤러리의 좋아요 수도 업데이트
             const galleryItems = document.querySelectorAll('.gallery-item');
             galleryItems.forEach(item => {
                 const img = item.querySelector('img');
