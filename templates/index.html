@@ -66,10 +66,13 @@
                             
                             <div class="input-actions">
                                 <div class="file-upload-section">
-                                    <button type="button" class="add-file-btn" onclick="toggleFileUploads()">
-                                        <span>+</span>
-                                    </button>
-                                    <div class="file-uploads hidden" id="fileUploads">
+                                    <!-- 복사붙여넣기 안내를 +버튼 자리에 -->
+                                    <div class="paste-instruction">
+                                        <p>💡 <strong>팁:</strong> 이미지를 복사한 후 <kbd>Ctrl+V</kbd>로 붙여넣을 수 있습니다!</p>
+                                    </div>
+                                    
+                                    <!-- 항상 보이는 첨부 파일들 -->
+                                    <div class="file-uploads" id="fileUploads">
                                         <div class="file-upload-item">
                                             <div class="drop-zone" data-target="1" ondragover="handleDragOver(event)" ondrop="handleDrop(event)">
                                                 <label for="image1" class="file-upload-label">
@@ -98,11 +101,6 @@
                                                 <button type="button" class="remove-image" onclick="removeImage(2)" style="display: none;">×</button>
                                             </div>
                                         </div>
-                                    </div>
-                                    
-                                    <!-- 복사붙여넣기 안내 -->
-                                    <div class="paste-instruction" id="pasteInstruction" style="display: none;">
-                                        <p>💡 <strong>팁:</strong> 이미지를 복사한 후 <kbd>Ctrl+V</kbd>로 붙여넣을 수 있습니다!</p>
                                     </div>
                                 </div>
                                 
