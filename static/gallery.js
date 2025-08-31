@@ -364,11 +364,17 @@ async function likeImage() {
 
 function formatDate(dateString) {
     const date = new Date(dateString);
-    return date.toLocaleString('ko-KR', {
+    
+    // 한국 시간대로 강제 변환
+    const options = {
+        timeZone: 'Asia/Seoul',  // 한국 시간대 명시
         year: 'numeric',
         month: '2-digit',
         day: '2-digit',
         hour: '2-digit',
-        minute: '2-digit'
-    });
+        minute: '2-digit',
+        hour12: false  // 24시간 형식
+    };
+    
+    return date.toLocaleString('ko-KR', options);
 }
