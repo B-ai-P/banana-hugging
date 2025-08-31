@@ -354,7 +354,11 @@ async function likeImage() {
     if (!currentImageId) return;
     
     const likeBtn = document.getElementById('likeBtn');
-    if (likeBtn.classList.contains('disabled')) return;
+    if (data.user_liked) {
+        likeBtn.classList.add('liked', 'disabled');
+    } else {
+        likeBtn.classList.remove('liked', 'disabled');
+    }
 
     try {
         const response = await fetch(`/like/${currentImageId}`, {
