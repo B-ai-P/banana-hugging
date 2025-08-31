@@ -449,12 +449,10 @@ async function quickLike(event, imageId) {
             
             console.log(`✅ 좋아요 성공: ${imageId} -> ${data.likes}개`);
         } else if (data.already_liked || (data.error && data.error.includes('already'))) {
-            // 이미 좋아요 처리
-            likeElement.textContent = `❤️ ${data.likes || 0}`;
+            // 🎯 이미 좋아요 - 개수는 그대로, 상태만 변경
             likeElement.classList.add('liked');
             
             document.querySelectorAll(`[data-image-id="${imageId}"]`).forEach(el => {
-                el.textContent = `❤️ ${data.likes || 0}`;
                 el.classList.add('liked');
             });
             
