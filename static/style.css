@@ -845,3 +845,42 @@ body {
 .hidden {
     display: none !important;
 }
+
+/* 무한 스크롤 로딩 */
+.loading-more {
+    text-align: center;
+    padding: 40px 20px;
+    color: #64748b;
+}
+
+.loading-more.hidden {
+    display: none;
+}
+
+.loading-spinner-small {
+    width: 32px;
+    height: 32px;
+    border: 2px solid #e2e8f0;
+    border-top: 2px solid #3b82f6;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 0 auto 16px;
+}
+
+.end-message {
+    text-align: center;
+    padding: 40px 20px;
+    color: #64748b;
+    font-size: 16px;
+    border-top: 1px solid #e2e8f0;
+    margin-top: 40px;
+}
+
+.end-message.hidden {
+    display: none;
+}
+
+.sort-btn {
+    cursor: pointer;
+    user-select: none;
+}
