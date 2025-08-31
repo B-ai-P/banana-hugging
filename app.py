@@ -4,10 +4,11 @@ import base64
 import io
 import itertools
 from datetime import datetime
-from flask import Flask, request, render_template, jsonify, send_file
+from flask import Flask, request, render_template, jsonify, send_file, session, redirect, url_for
 import requests
 from dotenv import load_dotenv
 import uuid
+from functools import wraps
 
 load_dotenv()
 
@@ -15,6 +16,7 @@ load_dotenv()
 API_BEARER_TOKEN = os.getenv('API_BEARER_TOKEN')
 API_KEY_ENV = os.getenv("API_KEY")
 API_URL_ENV = os.getenv("API_URL")
+SITE_PASSWORD = os.getenv("SITE_PASSWORD", "default_password")
 
 # --- API 키 관리 ---
 API_KEYS = [k.strip() for k in API_KEY_ENV.split(",")] if API_KEY_ENV else []
@@ -24,6 +26,14 @@ API_KEY_CYCLE = itertools.cycle(API_KEYS) if API_KEYS else None
 app = Flask(__name__)
 app.secret_key = os.urandom(24)
 
+# 세션 보안 강화
+app.config.update(
+    SESSION_COOKIE_SECURE=False,  # HTTPS에서는 True로 설정
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE='Lax',
+    PERMANENT_SESSION_LIFETIME=86400  # 24시간
+)
+
 # 임시 디렉토리 사용
 UPLOAD_FOLDER = '/tmp/uploads'
 RESULT_FOLDER = '/tmp/results'
@@ -32,10 +42,20 @@ os.makedirs(RESULT_FOLDER, exist_ok=True)
 
 # 메모리에 저장할 데이터
 image_gallery = []
-like_records = {}  # IP별 좋아요 기록 저장
+like_records = {}
+
+# 인증 데코레이터
+def require_auth(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not session.get('authenticated'):
+            if request.path.startswith('/api/') or request.method == 'POST':
+                return jsonify({'error': '인증이 필요합니다.', 'redirect': '/login'}), 401
+            return redirect(url_for('login'))
+        return f(*args, **kwargs)
+    return decorated_function
 
 def get_client_ip():
-    """클라이언트 IP 주소 가져오기"""
     if request.headers.get('X-Forwarded-For'):
         return request.headers.get('X-Forwarded-For').split(',')[0].strip()
     elif request.headers.get('X-Real-IP'):
@@ -89,13 +109,41 @@ def send_request_sync(payload):
             print(f"❌ {API_URL_ENV} 요청 실패: {e}")
             raise
 
+# 로그인 페이지 (인증 없이 접근 가능)
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        password = request.form.get('password', '')
+        if password == SITE_PASSWORD:
+            session['authenticated'] = True
+            session.permanent = True
+            print(f"✅ 로그인 성공: IP={get_client_ip()}")
+            return redirect(url_for('index'))
+        else:
+            print(f"❌ 로그인 실패: IP={get_client_ip()}, 입력된 암호: {password[:3]}...")
+            return render_template('login.html', error='잘못된 암호입니다.')
+    
+    # 이미 인증된 사용자는 메인으로 리다이렉트
+    if session.get('authenticated'):
+        return redirect(url_for('index'))
+    
+    return render_template('login.html')
+
+# 로그아웃
+@app.route('/logout')
+def logout():
+    session.pop('authenticated', None)
+    return redirect(url_for('login'))
+
+# 모든 기존 라우트에 인증 적용
 @app.route('/')
+@require_auth
 def index():
     return render_template('index.html')
 
 @app.route('/gallery')
+@require_auth
 def gallery():
-    # 정렬 옵션
     sort_by = request.args.get('sort', 'newest')
     
     sorted_gallery = image_gallery.copy()
@@ -104,21 +152,19 @@ def gallery():
         sorted_gallery.sort(key=lambda x: x['created_at'])
     elif sort_by == 'likes':
         sorted_gallery.sort(key=lambda x: x['likes'], reverse=True)
-    else:  # newest (default)
+    else:
         sorted_gallery.sort(key=lambda x: x['created_at'], reverse=True)
     
-    # 현재 사용자 IP의 좋아요 기록 확인
     client_ip = get_client_ip()
     user_likes = like_records.get(client_ip, set())
     
-    # 각 이미지에 현재 사용자가 좋아요했는지 표시
     for item in sorted_gallery:
         item['user_liked'] = item['id'] in user_likes
     
     return render_template('gallery.html', images=sorted_gallery, current_sort=sort_by)
 
-# 임시 파일 서빙을 위한 라우트
 @app.route('/user_content/<filename>')
+@require_auth
 def serve_user_content(filename):
     try:
         upload_path = os.path.join(UPLOAD_FOLDER, filename)
@@ -135,6 +181,7 @@ def serve_user_content(filename):
         return jsonify({'error': '파일 서빙 중 오류가 발생했습니다.'}), 500
 
 @app.route('/generate', methods=['POST'])
+@require_auth
 def generate_image():
     try:
         prompt = request.form.get('prompt', '').strip()
@@ -226,6 +273,7 @@ def generate_image():
         return jsonify({'error': f'오류 발생: {str(e)}'}), 500
 
 @app.route('/like/<image_id>', methods=['POST'])
+@require_auth
 def like_image(image_id):
     client_ip = get_client_ip()
     
@@ -248,6 +296,7 @@ def like_image(image_id):
     return jsonify({'error': '이미지를 찾을 수 없습니다.'}), 404
 
 @app.route('/image/<image_id>')
+@require_auth
 def get_image_details(image_id):
     client_ip = get_client_ip()
     user_likes = like_records.get(client_ip, set())
@@ -259,6 +308,12 @@ def get_image_details(image_id):
             return jsonify(item_data)
     return jsonify({'error': '이미지를 찾을 수 없습니다.'}), 404
 
+# 에러 핸들러도 인증 체크
+@app.errorhandler(401)
+def unauthorized(error):
+    return redirect(url_for('login'))
+
 if __name__ == '__main__':
     print("🚀 Flask 앱 시작 중...")
+    print(f"🔐 사이트 암호가 설정되었습니다.")
     app.run(host="0.0.0.0", port=7860, debug=True)
