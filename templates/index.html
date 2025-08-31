@@ -69,21 +69,40 @@
                                     <button type="button" class="add-file-btn" onclick="toggleFileUploads()">
                                         <span>+</span>
                                     </button>
-                                    <div id="fileUploads" class="file-uploads hidden">
+                                    <div class="file-uploads hidden" id="fileUploads">
                                         <div class="file-upload-item">
-                                            <label for="image1" class="file-upload-label">
-                                                <span>첨부 1</span>
-                                                <input type="file" id="image1" name="image1" accept="image/*" onchange="previewImage(this, 'preview1')">
-                                            </label>
-                                            <div id="preview1" class="image-preview"></div>
+                                            <div class="drop-zone" data-target="1" ondragover="handleDragOver(event)" ondrop="handleDrop(event)">
+                                                <label for="image1" class="file-upload-label">
+                                                    <span>첨부 1</span>
+                                                    <div class="drop-instruction">
+                                                        <p>📁 파일을 선택하거나</p>
+                                                        <p>🖱️ 드래그해서 놓아주세요</p>
+                                                    </div>
+                                                    <input type="file" id="image1" name="image1" accept="image/*" onchange="previewImage(this, 'preview1')">
+                                                </label>
+                                                <div id="preview1" class="image-preview"></div>
+                                                <button type="button" class="remove-image" onclick="removeImage(1)" style="display: none;">×</button>
+                                            </div>
                                         </div>
                                         <div class="file-upload-item">
-                                            <label for="image2" class="file-upload-label">
-                                                <span>첨부 2</span>
-                                                <input type="file" id="image2" name="image2" accept="image/*" onchange="previewImage(this, 'preview2')">
-                                            </label>
-                                            <div id="preview2" class="image-preview"></div>
+                                            <div class="drop-zone" data-target="2" ondragover="handleDragOver(event)" ondrop="handleDrop(event)">
+                                                <label for="image2" class="file-upload-label">
+                                                    <span>첨부 2</span>
+                                                    <div class="drop-instruction">
+                                                        <p>📁 파일을 선택하거나</p>
+                                                        <p>🖱️ 드래그해서 놓아주세요</p>
+                                                    </div>
+                                                    <input type="file" id="image2" name="image2" accept="image/*" onchange="previewImage(this, 'preview2')">
+                                                </label>
+                                                <div id="preview2" class="image-preview"></div>
+                                                <button type="button" class="remove-image" onclick="removeImage(2)" style="display: none;">×</button>
+                                            </div>
                                         </div>
+                                    </div>
+                                    
+                                    <!-- 복사붙여넣기 안내 -->
+                                    <div class="paste-instruction" id="pasteInstruction" style="display: none;">
+                                        <p>💡 <strong>팁:</strong> 이미지를 복사한 후 <kbd>Ctrl+V</kbd>로 붙여넣을 수 있습니다!</p>
                                     </div>
                                 </div>
                                 
