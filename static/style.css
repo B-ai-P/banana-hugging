@@ -1161,7 +1161,7 @@ body {
 }
 
 .paste-instruction {
-    margin-top: 12px;
+    margin-bottom: 16px;  /* 기존 margin-top: 12px를 margin-bottom으로 변경 */
     padding: 12px;
     background: #eff6ff;
     border-radius: 6px;
