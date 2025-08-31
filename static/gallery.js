@@ -31,12 +31,14 @@ async function openModal(imageId) {
             const likeBtn = document.getElementById('likeBtn');
             if (data.user_liked) {
                 likeBtn.classList.add('liked', 'disabled');
-                likeBtn.style.background = '#ff4757';
-                likeBtn.style.borderColor = '#ff4757';
+                likeBtn.style.background = '#fef2f2';
+                likeBtn.style.borderColor = '#fca5a5';
+                likeBtn.style.color = '#dc2626';
             } else {
                 likeBtn.classList.remove('liked', 'disabled');
-                likeBtn.style.background = '#2a2a2a';
-                likeBtn.style.borderColor = '#444';
+                likeBtn.style.background = '#f1f5f9';
+                likeBtn.style.borderColor = '#cbd5e1';
+                likeBtn.style.color = '#475569';
             }
 
             // 첨부 이미지들 표시
@@ -83,8 +85,9 @@ async function likeImage() {
         if (data.success) {
             document.getElementById('likeCount').textContent = data.likes;
             likeBtn.classList.add('liked', 'disabled');
-            likeBtn.style.background = '#ff4757';
-            likeBtn.style.borderColor = '#ff4757';
+            likeBtn.style.background = '#fef2f2';
+            likeBtn.style.borderColor = '#fca5a5';
+            likeBtn.style.color = '#dc2626';
             
             // 갤러리의 좋아요 수도 업데이트
             const galleryItems = document.querySelectorAll('.gallery-item');
