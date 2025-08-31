@@ -64,8 +64,10 @@ function resetForm() {
     document.getElementById('preview1').innerHTML = '';
     document.getElementById('preview2').innerHTML = '';
     
-    // 파일 업로드 섹션 숨기기
-    document.getElementById('fileUploads').classList.add('hidden');
+    // 파일 상태 초기화 추가
+    uploadedFiles = [null, null];
+    updateDropZoneState(1, false);
+    updateDropZoneState(2, false);
     
     // 결과 섹션 숨기기
     document.getElementById('result').classList.add('hidden');
