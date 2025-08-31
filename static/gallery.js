@@ -354,11 +354,7 @@ async function likeImage() {
     if (!currentImageId) return;
     
     const likeBtn = document.getElementById('likeBtn');
-    if (data.user_liked) {
-        likeBtn.classList.add('liked', 'disabled');
-    } else {
-        likeBtn.classList.remove('liked', 'disabled');
-    }
+    if (likeBtn.classList.contains('disabled')) return;
 
     try {
         const response = await fetch(`/like/${currentImageId}`, {
@@ -378,15 +374,10 @@ async function likeImage() {
             likeBtn.style.borderColor = '#fca5a5';
             likeBtn.style.color = '#dc2626';
             
-            const galleryItems = document.querySelectorAll('.gallery-item');
-            galleryItems.forEach(item => {
-                const img = item.querySelector('img');
-                if (img && img.src.includes(currentImageId)) {
-                    const likeCount = item.querySelector('.like-count');
-                    if (likeCount) {
-                        likeCount.textContent = `❤️ ${data.likes}`;
-                    }
-                }
+            // 갤러리에서도 업데이트
+            document.querySelectorAll(`[data-image-id="${currentImageId}"]`).forEach(el => {
+                el.textContent = `❤️ ${data.likes}`;
+                el.classList.add('liked');
             });
         } else {
             if (data.already_liked) {
