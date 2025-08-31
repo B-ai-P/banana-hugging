@@ -1,8 +1,39 @@
 let currentImageId = null;
 let userLikedImages = new Set();
+let currentPage = 1;
+let currentSort = 'newest';
+let isLoading = false;
+let hasMore = true;
 
 document.addEventListener('DOMContentLoaded', function() {
-    const modal = document.getElementById('imageModal');
+    // 초기 이미지 로드
+    loadImages(true);
+    
+    // 정렬 버튼 이벤트
+    document.querySelectorAll('.sort-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            // 활성 상태 변경
+            document.querySelectorAll('.sort-btn').forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            
+            // 정렬 변경 및 새로고침
+            currentSort = this.dataset.sort;
+            currentPage = 1;
+            hasMore = true;
+            document.getElementById('gallery').innerHTML = '';
+            loadImages(true);
+        });
+    });
+    
+    // 스크롤 이벤트
+    window.addEventListener('scroll', function() {
+        if (isLoading || !hasMore) return;
+        
+        // 페이지 하단에 가까워지면 더 로드
+        if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 1000) {
+            loadImages(false);
+        }
+    });
     
     // ESC 키로 모달 닫기
     document.addEventListener('keydown', function(e) {
@@ -11,6 +42,77 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 });
+
+async function loadImages(isInitial = false) {
+    if (isLoading) return;
+    
+    isLoading = true;
+    const loadingMore = document.getElementById('loadingMore');
+    const emptyGallery = document.getElementById('emptyGallery');
+    const endMessage = document.getElementById('endMessage');
+    
+    if (!isInitial) {
+        loadingMore.classList.remove('hidden');
+    }
+    
+    try {
+        const response = await fetch(`/api/gallery?page=${currentPage}&per_page=15&sort=${currentSort}`);
+        const data = await response.json();
+        
+        if (data.images && data.images.length > 0) {
+            // 이미지 추가
+            appendImages(data.images);
+            
+            // 상태 업데이트
+            hasMore = data.has_more;
+            currentPage++;
+            
+            // 빈 갤러리 메시지 숨기기
+            emptyGallery.classList.add('hidden');
+            
+            // 더 이상 이미지가 없으면 끝 메시지 표시
+            if (!hasMore) {
+                endMessage.classList.remove('hidden');
+            }
+        } else if (isInitial) {
+            // 초기 로드에서 이미지가 없으면 빈 갤러리 표시
+            emptyGallery.classList.remove('hidden');
+        }
+        
+    } catch (error) {
+        console.error('이미지 로드 오류:', error);
+        alert('이미지를 불러오는데 실패했습니다.');
+    } finally {
+        isLoading = false;
+        loadingMore.classList.add('hidden');
+    }
+}
+
+function appendImages(images) {
+    const gallery = document.getElementById('gallery');
+    
+    images.forEach(image => {
+        const galleryItem = document.createElement('div');
+        galleryItem.className = 'gallery-item';
+        galleryItem.onclick = () => openModal(image.id);
+        
+        galleryItem.innerHTML = `
+            <div class="image-container">
+                <img src="${image.result_image}" alt="생성된 이미지" loading="lazy">
+                <div class="image-overlay">
+                    <div class="like-info">
+                        <span class="like-count">❤️ ${image.likes}</span>
+                    </div>
+                    <div class="image-prompt">
+                        <p>${image.prompt.length > 50 ? image.prompt.substring(0, 50) + '...' : image.prompt}</p>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        gallery.appendChild(galleryItem);
+    });
+}
 
 async function openModal(imageId) {
     currentImageId = imageId;
@@ -92,7 +194,8 @@ async function likeImage() {
             // 갤러리의 좋아요 수도 업데이트
             const galleryItems = document.querySelectorAll('.gallery-item');
             galleryItems.forEach(item => {
-                if (item.getAttribute('onclick').includes(currentImageId)) {
+                const img = item.querySelector('img');
+                if (img && img.src.includes(currentImageId)) {
                     const likeCount = item.querySelector('.like-count');
                     if (likeCount) {
                         likeCount.textContent = `❤️ ${data.likes}`;
