@@ -1,0 +1,4 @@
+Flask==2.3.3
+aiohttp==3.9.1
+python-dotenv==1.0.0
+cloudinary==1.37.0
