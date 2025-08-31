@@ -13,9 +13,9 @@ document.addEventListener('DOMContentLoaded', function() {
         generateBtn.disabled = true;
         loading.classList.remove('hidden');
         result.classList.add('hidden');
-
+    
         const formData = new FormData(form);
-
+    
         try {
             const response = await fetch('/generate', {
                 method: 'POST',
@@ -29,18 +29,41 @@ document.addEventListener('DOMContentLoaded', function() {
                 document.getElementById('resultText').textContent = data.response_text || 'AI가 이미지를 생성했습니다.';
                 result.classList.remove('hidden');
             } else {
-                // 🎯 Google AI 키 소진 체크
-                if (data.error && data.error.includes('No Google AI keys available')) {
+                // 🎯 여러 방법으로 키 소진 체크
+                const checkNoKeys = (obj) => {
+                    const regex = /No Google AI keys available/i;
+                    
+                    // 1. 전체 객체를 문자열로 변환해서 체크
+                    if (regex.test(JSON.stringify(obj))) {
+                        return true;
+                    }
+                    
+                    // 2. error.message 체크
+                    if (obj.error && obj.error.message && regex.test(obj.error.message)) {
+                        return true;
+                    }
+                    
+                    // 3. 단순 error 문자열 체크  
+                    if (typeof obj.error === 'string' && regex.test(obj.error)) {
+                        return true;
+                    }
+                    
+                    return false;
+                };
+                
+                if (checkNoKeys(data)) {
                     alert('🍽️ 급식소 배급이 종료되었습니다. 다음기회에!');
                 } else {
-                    alert('오류: ' + data.error);
+                    alert('오류: ' + (data.error?.message || data.error || '알 수 없는 오류'));
                 }
             }
         } catch (error) {
             console.error('요청 오류:', error);
             
-            // 🎯 에러 메시지에서도 체크
-            if (error.message && error.message.includes('No Google AI keys available')) {
+            // 🎯 에러도 동일하게 체크
+            const noKeysRegex = /No Google AI keys available/i;
+            
+            if (noKeysRegex.test(error.toString()) || noKeysRegex.test(error.message || '')) {
                 alert('🍽️ 급식소 배급이 종료되었습니다. 다음기회에!');
             } else {
                 alert('요청 중 오류가 발생했습니다: ' + error.message);
