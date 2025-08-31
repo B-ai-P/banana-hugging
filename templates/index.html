@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gemini 이미지 생성기</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>🎨 Gemini AI 이미지 생성기</h1>
+        
+        <div class="header-buttons">
+            <button id="galleryBtn" class="gallery-btn">📸 챗붕이들이 만든 이미지 보기</button>
+        </div>
+
+        <form id="imageForm" enctype="multipart/form-data">
+            <div class="input-group">
+                <label for="prompt">이미지 생성 프롬프트:</label>
+                <textarea id="prompt" name="prompt" rows="4" placeholder="원하는 이미지를 설명해주세요..." required></textarea>
+            </div>
+
+            <div class="image-upload-section">
+                <div class="upload-item">
+                    <label for="image1">참고 이미지 1 (선택):</label>
+                    <input type="file" id="image1" name="image1" accept="image/*">
+                    <div class="preview" id="preview1"></div>
+                </div>
+
+                <div class="upload-item">
+                    <label for="image2">참고 이미지 2 (선택):</label>
+                    <input type="file" id="image2" name="image2" accept="image/*">
+                    <div class="preview" id="preview2"></div>
+                </div>
+            </div>
+
+            <button type="submit" id="generateBtn">🎯 이미지 생성하기</button>
+        </form>
+
+        <div id="loading" class="loading" style="display: none;">
+            <div class="spinner"></div>
+            <p>AI가 이미지를 생성중입니다...</p>
+        </div>
+
+        <div id="result" class="result" style="display: none;">
+            <h2>생성 결과</h2>
+            <div class="result-content">
+                <img id="resultImage" src="" alt="생성된 이미지">
+                <div class="result-text">
+                    <h3>AI 응답:</h3>
+                    <p id="resultText"></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>
