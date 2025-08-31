@@ -364,7 +364,12 @@ def generate_image():
                 'response_text': response_text.strip()
             })
         else:
-            return jsonify({'error': 'AI로부터 이미지를 받지 못했습니다.'}), 500
+            # 🎯 data 응답 안에서 Google AI 키 에러 체크
+            data_str = str(data)
+            if "No Google AI keys available" in data_str or "No billing-enabled Google AI keys available" in data_str:
+                return jsonify({'error': 'No Google AI keys available'}), 500
+            else:
+                return jsonify({'error': 'AI로부터 이미지를 받지 못했습니다.'}), 500
 
     except Exception as e:
         print(f"❌ 에러 발생: {e} 시간={get_korean_time().strftime('%Y-%m-%d %H:%M:%S')}")
