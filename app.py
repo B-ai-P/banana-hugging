@@ -93,10 +93,6 @@ def send_request_sync(payload):
 def index():
     return render_template('index.html')
 
-@app.route('/create')
-def create():
-    return render_template('create.html')
-
 @app.route('/gallery')
 def gallery():
     # 정렬 옵션
@@ -124,14 +120,11 @@ def gallery():
 # 임시 파일 서빙을 위한 라우트
 @app.route('/user_content/<filename>')
 def serve_user_content(filename):
-    """임시 디렉토리의 이미지 파일을 서빙"""
     try:
-        # 업로드된 이미지 확인
         upload_path = os.path.join(UPLOAD_FOLDER, filename)
         if os.path.exists(upload_path):
             return send_file(upload_path, as_attachment=False)
         
-        # 결과 이미지 확인
         result_path = os.path.join(RESULT_FOLDER, filename)
         if os.path.exists(result_path):
             return send_file(result_path, as_attachment=False)
@@ -151,13 +144,11 @@ def generate_image():
         parts = [{"text": f"Image generation prompt: {prompt}"}]
         uploaded_images = []
         
-        # 이미지 파일 처리
-        for i in range(1, 3):  # image1, image2
+        for i in range(1, 3):
             file_key = f'image{i}'
             if file_key in request.files:
                 file = request.files[file_key]
                 if file.filename and file.content_type.startswith("image/"):
-                    # 파일을 메모리에서 처리
                     image_bytes = file.read()
                     base64_image = base64.b64encode(image_bytes).decode("utf-8")
                     
@@ -168,7 +159,6 @@ def generate_image():
                         }
                     })
                     
-                    # 업로드된 이미지를 임시 디렉토리에 저장
                     file_id = f"{str(uuid.uuid4())}.png"
                     file_path = os.path.join(UPLOAD_FOLDER, file_id)
                     with open(file_path, 'wb') as f:
@@ -191,10 +181,7 @@ def generate_image():
             ]
         }
 
-        print(f"API 요청 시작: 프롬프트={prompt[:50]}...")
         data = send_request_sync(payload)
-        print("API 요청 완료")
-
         response_text = ""
         result_image_path = None
 
@@ -206,16 +193,14 @@ def generate_image():
                     base64_data = part["inlineData"]["data"]
                     image_data = base64.b64decode(base64_data)
                     
-                    # 결과 이미지를 임시 디렉토리에 저장
                     result_id = f"{str(uuid.uuid4())}.png"
                     result_path = os.path.join(RESULT_FOLDER, result_id)
                     with open(result_path, 'wb') as f:
                         f.write(image_data)
                     result_image_path = f"/user_content/{result_id}"
                     
-                    # 갤러리에 추가
                     gallery_item = {
-                        'id': result_id.replace('.png', ''),  # .png 제거
+                        'id': result_id.replace('.png', ''),
                         'result_image': result_image_path,
                         'prompt': prompt,
                         'uploaded_images': uploaded_images,
@@ -224,7 +209,6 @@ def generate_image():
                         'likes': 0
                     }
                     image_gallery.append(gallery_item)
-                    print(f"갤러리에 이미지 추가됨: {result_id}")
 
         if result_image_path:
             return jsonify({
@@ -245,20 +229,16 @@ def generate_image():
 def like_image(image_id):
     client_ip = get_client_ip()
     
-    # IP별 좋아요 기록 초기화
     if client_ip not in like_records:
         like_records[client_ip] = set()
     
-    # 이미 좋아요한 이미지인지 확인
     if image_id in like_records[client_ip]:
         return jsonify({'error': '이미 좋아요를 누른 이미지입니다.', 'already_liked': True}), 400
     
-    # 이미지 찾기 및 좋아요 증가
     for item in image_gallery:
         if item['id'] == image_id:
             item['likes'] += 1
             like_records[client_ip].add(image_id)
-            print(f"좋아요 추가: IP={client_ip}, Image={image_id}, Total={item['likes']}")
             return jsonify({
                 'success': True, 
                 'likes': item['likes'],
@@ -278,20 +258,6 @@ def get_image_details(image_id):
             item_data['user_liked'] = image_id in user_likes
             return jsonify(item_data)
     return jsonify({'error': '이미지를 찾을 수 없습니다.'}), 404
-
-# 에러 핸들러
-@app.errorhandler(404)
-def not_found(error):
-    if request.path.startswith('/generate') or request.path.startswith('/like') or request.path.startswith('/image'):
-        return jsonify({'error': '요청한 리소스를 찾을 수 없습니다.'}), 404
-    return render_template('index.html'), 404
-
-@app.errorhandler(500)
-def internal_error(error):
-    print(f"500 에러 발생: {error}")
-    if request.path.startswith('/generate') or request.path.startswith('/like') or request.path.startswith('/image'):
-        return jsonify({'error': '서버 내부 오류가 발생했습니다.'}), 500
-    return render_template('index.html'), 500
 
 if __name__ == '__main__':
     print("🚀 Flask 앱 시작 중...")
