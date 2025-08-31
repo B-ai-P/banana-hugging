@@ -41,11 +41,6 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 
-function toggleFileUploads() {
-    const fileUploads = document.getElementById('fileUploads');
-    fileUploads.classList.toggle('hidden');
-}
-
 function previewImage(input, previewId) {
     const preview = document.getElementById(previewId);
     preview.innerHTML = '';
@@ -90,15 +85,6 @@ document.addEventListener('DOMContentLoaded', function() {
     dragOverlay.className = 'drag-overlay';
     dragOverlay.innerHTML = '🖼️ 이미지를 여기에 놓아주세요!';
     document.body.appendChild(dragOverlay);
-    
-    // 복사붙여넣기 안내 표시
-    const fileUploads = document.getElementById('fileUploads');
-    if (fileUploads) {
-        const pasteInstruction = document.getElementById('pasteInstruction');
-        if (pasteInstruction) {
-            pasteInstruction.style.display = 'block';
-        }
-    }
     
     // 전역 드래그 이벤트
     document.addEventListener('dragenter', handleGlobalDragEnter);
