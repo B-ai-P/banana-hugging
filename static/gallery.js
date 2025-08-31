@@ -25,13 +25,23 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
     
-    // 스크롤 이벤트
+    // 스크롤 이벤트 (더 부드럽게)
+    let ticking = false;
     window.addEventListener('scroll', function() {
-        if (isLoading || !hasMore) return;
-        
-        // 페이지 하단에 가까워지면 더 로드
-        if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 1000) {
-            loadImages(false);
+        if (!ticking) {
+            requestAnimationFrame(() => {
+                if (isLoading || !hasMore) {
+                    ticking = false;
+                    return;
+                }
+                
+                // 더 일찍 로드 시작 (1500px 전에)
+                if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 1500) {
+                    loadImages(false);
+                }
+                ticking = false;
+            });
+            ticking = true;
         }
     });
     
@@ -60,8 +70,8 @@ async function loadImages(isInitial = false) {
         const data = await response.json();
         
         if (data.images && data.images.length > 0) {
-            // 이미지 추가
-            appendImages(data.images);
+            // 스켈레톤 먼저 표시하고 이미지 로드
+            await appendImagesWithSkeleton(data.images);
             
             // 상태 업데이트
             hasMore = data.has_more;
@@ -88,17 +98,19 @@ async function loadImages(isInitial = false) {
     }
 }
 
-function appendImages(images) {
+async function appendImagesWithSkeleton(images) {
     const gallery = document.getElementById('gallery');
     
-    images.forEach(image => {
+    // 스켈레톤과 실제 이미지를 동시에 처리
+    const imagePromises = images.map(async (image, index) => {
         const galleryItem = document.createElement('div');
         galleryItem.className = 'gallery-item';
-        galleryItem.onclick = () => openModal(image.id);
         
+        // 스켈레톤을 먼저 표시
         galleryItem.innerHTML = `
-            <div class="image-container">
-                <img src="${image.result_image}" alt="생성된 이미지" loading="lazy">
+            <div class="image-container loading">
+                <div class="image-loading-text">로딩중...</div>
+                <img src="" alt="생성된 이미지" style="display: none;">
                 <div class="image-overlay">
                     <div class="like-info">
                         <span class="like-count">❤️ ${image.likes}</span>
@@ -111,7 +123,49 @@ function appendImages(images) {
         `;
         
         gallery.appendChild(galleryItem);
+        
+        // 이미지 미리 로드
+        return new Promise((resolve) => {
+            const img = galleryItem.querySelector('img');
+            const container = galleryItem.querySelector('.image-container');
+            const loadingText = galleryItem.querySelector('.image-loading-text');
+            
+            const preloadImg = new Image();
+            preloadImg.onload = () => {
+                // 이미지 로드 완료 시 부드럽게 전환
+                img.src = image.result_image;
+                img.style.display = 'block';
+                
+                setTimeout(() => {
+                    img.classList.add('loaded');
+                    container.classList.remove('loading');
+                    container.classList.add('loaded');
+                    if (loadingText) loadingText.remove();
+                    
+                    // 클릭 이벤트 추가
+                    galleryItem.onclick = () => openModal(image.id);
+                }, 50);
+                
+                resolve();
+            };
+            
+            preloadImg.onerror = () => {
+                // 이미지 로드 실패 시
+                loadingText.textContent = '로드 실패';
+                loadingText.style.color = '#ef4444';
+                container.classList.remove('loading');
+                resolve();
+            };
+            
+            // 실제 이미지 로드 시작 (약간 지연으로 자연스럽게)
+            setTimeout(() => {
+                preloadImg.src = image.result_image;
+            }, index * 100); // 0.1초씩 지연해서 자연스럽게
+        });
     });
+    
+    // 모든 이미지 로딩 완료까지 기다리지 않고 바로 리턴
+    // (백그라운드에서 계속 로딩됨)
 }
 
 async function openModal(imageId) {
@@ -122,8 +176,19 @@ async function openModal(imageId) {
         const data = await response.json();
 
         if (response.ok) {
+            // 모달 이미지도 미리 로드
+            const modalImg = document.getElementById('modalImage');
+            const preloadImg = new Image();
+            
+            preloadImg.onload = () => {
+                modalImg.src = data.result_image;
+                modalImg.style.opacity = '1';
+            };
+            
             // 모달 내용 채우기
-            document.getElementById('modalImage').src = data.result_image;
+            modalImg.style.opacity = '0.5'; // 로딩 중 표시
+            preloadImg.src = data.result_image;
+            
             document.getElementById('modalDate').textContent = formatDate(data.created_at);
             document.getElementById('likeCount').textContent = data.likes;
             document.getElementById('modalPrompt').textContent = data.prompt;
