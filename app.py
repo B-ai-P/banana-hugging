@@ -3,7 +3,7 @@ import json
 import base64
 import io
 import itertools
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from flask import Flask, request, render_template, jsonify, send_file, session, redirect, url_for
 import requests
 from dotenv import load_dotenv
@@ -28,10 +28,10 @@ app.secret_key = os.urandom(24)
 
 # 세션 보안 강화
 app.config.update(
-    SESSION_COOKIE_SECURE=False,
+    SESSION_COOKIE_SECURE=False,  # HTTPS에서는 True로 설정
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SAMESITE='Lax',
-    PERMANENT_SESSION_LIFETIME=86400
+    PERMANENT_SESSION_LIFETIME=86400  # 24시간
 )
 
 # 임시 디렉토리 사용
@@ -43,6 +43,13 @@ os.makedirs(RESULT_FOLDER, exist_ok=True)
 # 메모리에 저장할 데이터
 image_gallery = []
 like_records = {}
+
+# 한국 시간대 설정
+KST = timezone(timedelta(hours=9))
+
+def get_korean_time():
+    """현재 한국 시간을 반환"""
+    return datetime.now(KST)
 
 # 인증 데코레이터
 def require_auth(f):
@@ -109,7 +116,7 @@ def send_request_sync(payload):
             print(f"❌ {API_URL_ENV} 요청 실패: {e}")
             raise
 
-# 로그인 페이지
+# 로그인 페이지 (인증 없이 접근 가능)
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
@@ -117,22 +124,26 @@ def login():
         if password == SITE_PASSWORD:
             session['authenticated'] = True
             session.permanent = True
-            print(f"✅ 로그인 성공: IP={get_client_ip()}")
+            print(f"✅ 로그인 성공: IP={get_client_ip()} 시간={get_korean_time().strftime('%Y-%m-%d %H:%M:%S')}")
             return redirect(url_for('index'))
         else:
-            print(f"❌ 로그인 실패: IP={get_client_ip()}, 입력된 암호: {password[:3]}...")
+            print(f"❌ 로그인 실패: IP={get_client_ip()} 시간={get_korean_time().strftime('%Y-%m-%d %H:%M:%S')}")
             return render_template('login.html', error='잘못된 암호입니다.')
     
+    # 이미 인증된 사용자는 메인으로 리다이렉트
     if session.get('authenticated'):
         return redirect(url_for('index'))
     
     return render_template('login.html')
 
+# 로그아웃
 @app.route('/logout')
 def logout():
+    print(f"🚪 로그아웃: IP={get_client_ip()} 시간={get_korean_time().strftime('%Y-%m-%d %H:%M:%S')}")
     session.pop('authenticated', None)
     return redirect(url_for('login'))
 
+# 모든 기존 라우트에 인증 적용
 @app.route('/')
 @require_auth
 def index():
@@ -207,6 +218,8 @@ def generate_image():
         if not prompt:
             return jsonify({'error': '프롬프트를 입력해주세요.'}), 400
 
+        print(f"🎨 이미지 생성 시작: {prompt[:50]}... IP={get_client_ip()} 시간={get_korean_time().strftime('%Y-%m-%d %H:%M:%S')}")
+
         parts = [{"text": f"Image generation prompt: {prompt}"}]
         uploaded_images = []
         
@@ -265,16 +278,21 @@ def generate_image():
                         f.write(image_data)
                     result_image_path = f"/user_content/{result_id}"
                     
+                    # 한국 시간으로 저장
+                    korean_time = get_korean_time()
+                    
                     gallery_item = {
                         'id': result_id.replace('.png', ''),
                         'result_image': result_image_path,
                         'prompt': prompt,
                         'uploaded_images': uploaded_images,
                         'response_text': response_text.strip(),
-                        'created_at': datetime.now().isoformat(),
+                        'created_at': korean_time.isoformat(),  # 한국시간 저장
                         'likes': 0
                     }
                     image_gallery.append(gallery_item)
+                    
+                    print(f"✅ 이미지 생성 완료: ID={gallery_item['id']} 한국시간={korean_time.strftime('%Y-%m-%d %H:%M:%S')}")
 
         if result_image_path:
             return jsonify({
@@ -286,7 +304,7 @@ def generate_image():
             return jsonify({'error': 'AI로부터 이미지를 받지 못했습니다.'}), 500
 
     except Exception as e:
-        print(f"에러 발생: {e}")
+        print(f"❌ 에러 발생: {e} 시간={get_korean_time().strftime('%Y-%m-%d %H:%M:%S')}")
         import traceback
         traceback.print_exc()
         return jsonify({'error': f'오류 발생: {str(e)}'}), 500
@@ -306,6 +324,7 @@ def like_image(image_id):
         if item['id'] == image_id:
             item['likes'] += 1
             like_records[client_ip].add(image_id)
+            print(f"❤️ 좋아요: ID={image_id} IP={client_ip} 총 좋아요={item['likes']} 시간={get_korean_time().strftime('%Y-%m-%d %H:%M:%S')}")
             return jsonify({
                 'success': True, 
                 'likes': item['likes'],
@@ -327,11 +346,25 @@ def get_image_details(image_id):
             return jsonify(item_data)
     return jsonify({'error': '이미지를 찾을 수 없습니다.'}), 404
 
+# 에러 핸들러도 인증 체크
 @app.errorhandler(401)
 def unauthorized(error):
     return redirect(url_for('login'))
 
+# 서버 상태 체크 (선택사항)
+@app.route('/health')
+def health_check():
+    return jsonify({
+        'status': 'healthy',
+        'server_time_kst': get_korean_time().strftime('%Y-%m-%d %H:%M:%S'),
+        'total_images': len(image_gallery),
+        'total_likes': sum(item['likes'] for item in image_gallery)
+    })
+
 if __name__ == '__main__':
     print("🚀 Flask 앱 시작 중...")
     print(f"🔐 사이트 암호가 설정되었습니다.")
+    print(f"🇰🇷 서버 시간: {get_korean_time().strftime('%Y-%m-%d %H:%M:%S KST')}")
+    print(f"📁 업로드 폴더: {UPLOAD_FOLDER}")
+    print(f"📁 결과 폴더: {RESULT_FOLDER}")
     app.run(host="0.0.0.0", port=7860, debug=True)
