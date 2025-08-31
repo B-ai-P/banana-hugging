@@ -26,12 +26,15 @@ API_KEY_CYCLE = itertools.cycle(API_KEYS) if API_KEYS else None
 app = Flask(__name__)
 app.secret_key = os.urandom(24)
 
+# 파일 업로드 제한 설정
+app.config['MAX_CONTENT_LENGTH'] = 15 * 1024 * 1024  # 15MB 제한
+
 # 세션 보안 강화
 app.config.update(
-    SESSION_COOKIE_SECURE=False,  # HTTPS에서는 True로 설정
+    SESSION_COOKIE_SECURE=False,
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SAMESITE='Lax',
-    PERMANENT_SESSION_LIFETIME=86400  # 24시간
+    PERMANENT_SESSION_LIFETIME=86400
 )
 
 # 임시 디렉토리 사용
@@ -50,6 +53,43 @@ KST = timezone(timedelta(hours=9))
 def get_korean_time():
     """현재 한국 시간을 반환"""
     return datetime.now(KST)
+
+# 허용된 이미지 파일 확장자 및 검증 함수
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp', 'tiff', 'svg'}
+MAX_FILE_SIZE = 15 * 1024 * 1024  # 15MB
+
+def validate_image_file(file):
+    """이미지 파일 유효성 검사"""
+    if not file or not file.filename:
+        return False, "파일이 선택되지 않았습니다."
+    
+    # 확장자 검사
+    filename_lower = file.filename.lower()
+    if '.' not in filename_lower:
+        return False, f"파일 확장자가 없습니다: {file.filename}"
+    
+    ext = filename_lower.rsplit('.', 1)[1]
+    if ext not in ALLOWED_EXTENSIONS:
+        allowed_list = ', '.join(sorted(ALLOWED_EXTENSIONS))
+        return False, f"지원하지 않는 파일 형식입니다. 허용 형식: {allowed_list}"
+    
+    # MIME 타입 검사
+    if not file.content_type or not file.content_type.startswith('image/'):
+        return False, f"이미지 파일이 아닙니다: {file.filename}"
+    
+    # 파일 크기 검사
+    file.seek(0, 2)  # 파일 끝으로 이동
+    file_size = file.tell()  # 크기 확인
+    file.seek(0)  # 다시 처음으로 이동
+    
+    if file_size == 0:
+        return False, f"빈 파일입니다: {file.filename}"
+    
+    if file_size > MAX_FILE_SIZE:
+        size_mb = round(file_size / (1024 * 1024), 2)
+        return False, f"파일 크기가 너무 큽니다 ({size_mb}MB). 최대 15MB까지 가능합니다."
+    
+    return True, "유효한 파일입니다."
 
 # 인증 데코레이터
 def require_auth(f):
@@ -227,26 +267,40 @@ def generate_image():
             file_key = f'image{i}'
             if file_key in request.files:
                 file = request.files[file_key]
-                if file.filename and file.content_type.startswith("image/"):
-                    image_bytes = file.read()
-                    base64_image = base64.b64encode(image_bytes).decode("utf-8")
+                
+                # 파일이 실제로 업로드되었는지 확인
+                if file and file.filename:
+                    # 파일 유효성 검사
+                    is_valid, message = validate_image_file(file)
+                    if not is_valid:
+                        return jsonify({'error': message}), 400
                     
-                    parts.append({
-                        "inlineData": {
-                            "mimeType": file.content_type,
-                            "data": base64_image
-                        }
-                    })
-                    
-                    file_id = f"{str(uuid.uuid4())}.png"
-                    file_path = os.path.join(UPLOAD_FOLDER, file_id)
-                    with open(file_path, 'wb') as f:
-                        f.write(image_bytes)
-                    
-                    uploaded_images.append({
-                        'filename': file.filename,
-                        'path': f"/user_content/{file_id}"
-                    })
+                    try:
+                        image_bytes = file.read()
+                        base64_image = base64.b64encode(image_bytes).decode("utf-8")
+                        
+                        parts.append({
+                            "inlineData": {
+                                "mimeType": file.content_type,
+                                "data": base64_image
+                            }
+                        })
+                        
+                        file_id = f"{str(uuid.uuid4())}.png"
+                        file_path = os.path.join(UPLOAD_FOLDER, file_id)
+                        with open(file_path, 'wb') as f:
+                            f.write(image_bytes)
+                        
+                        uploaded_images.append({
+                            'filename': file.filename,
+                            'path': f"/user_content/{file_id}"
+                        })
+                        
+                        print(f"📁 파일 업로드 성공: {file.filename} ({round(len(image_bytes)/(1024*1024), 2)}MB)")
+                        
+                    except Exception as e:
+                        print(f"❌ 파일 처리 오류: {e}")
+                        return jsonify({'error': f'파일 처리 중 오류가 발생했습니다: {file.filename}'}), 400
 
         payload = {
             "contents": [{"role": "user", "parts": parts}],
@@ -350,6 +404,10 @@ def get_image_details(image_id):
 @app.errorhandler(401)
 def unauthorized(error):
     return redirect(url_for('login'))
+
+@app.errorhandler(413)
+def request_entity_too_large(error):
+    return jsonify({'error': '파일 크기가 너무 큽니다. 최대 15MB까지 업로드 가능합니다.'}), 413
 
 # 서버 상태 체크 (선택사항)
 @app.route('/health')
