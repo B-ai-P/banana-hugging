@@ -589,7 +589,7 @@ body {
     transform: translate(-50%, -50%);
     width: 90%;
     max-width: 1200px;
-    height: 80vh;
+    height: 85vh;
     background: #ffffff;
     border-radius: 12px;
     border: 1px solid #e2e8f0;
@@ -623,6 +623,7 @@ body {
     display: grid;
     grid-template-columns: 1fr 400px;
     height: 100%;
+    overflow: hidden;
 }
 
 .modal-left {
@@ -630,12 +631,15 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 20px;
+    padding: 12px;
+    overflow: hidden;
 }
 
 .modal-left img {
-    max-width: 100%;
-    max-height: 100%;
+    max-width: calc(100% - 24px);
+    max-height: calc(100% - 24px);
+    width: auto;
+    height: auto;
     object-fit: contain;
     border-radius: 8px;
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
@@ -645,6 +649,7 @@ body {
     padding: 24px;
     overflow-y: auto;
     background: #ffffff;
+    border-left: 1px solid #e2e8f0;
 }
 
 .modal-header {
@@ -745,61 +750,48 @@ body {
     border: 1px solid #e2e8f0;
 }
 
-/* 반응형 */
+/* 반응형 모달 */
 @media (max-width: 768px) {
-    .sidebar {
-        width: 200px;
-    }
-    
-    .main-content {
-        margin-left: 200px;
-    }
-    
-    .content-area {
-        padding: 20px;
-    }
-    
-    .result-container {
-        grid-template-columns: 1fr;
-    }
-    
-    .modal-body {
-        grid-template-columns: 1fr;
-        grid-template-rows: 1fr auto;
-    }
-    
     .modal-content {
         width: 95%;
         height: 90vh;
     }
+    
+    .modal-body {
+        grid-template-columns: 1fr;
+        grid-template-rows: 60% 40%;
+    }
+    
+    .modal-left {
+        padding: 8px;
+    }
+    
+    .modal-left img {
+        max-width: calc(100% - 16px);
+        max-height: calc(100% - 16px);
+    }
+    
+    .modal-right {
+        padding: 16px;
+    }
 }
 
 @media (max-width: 480px) {
-    .sidebar {
-        width: 60px;
+    .modal-content {
+        width: 98%;
+        height: 95vh;
     }
     
-    .nav-text {
-        display: none;
+    .modal-body {
+        grid-template-rows: 50% 50%;
     }
     
-    .main-content {
-        margin-left: 60px;
-    }
-    
-    .gallery-header {
-        flex-direction: column;
-        gap: 16px;
-        align-items: flex-start;
-    }
-    
-    .input-actions {
-        flex-direction: column;
-        align-items: stretch;
-    }
-    
-    .file-uploads {
-        flex-direction: column;
+    .modal-close {
+        top: 8px;
+        right: 8px;
+        width: 28px;
+        height: 28px;
+        font-size: 16px;
     }
 }
 
