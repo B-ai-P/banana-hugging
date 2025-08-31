@@ -3,12 +3,9 @@ import json
 import base64
 import io
 import itertools
-import asyncio
-import threading
 from datetime import datetime
 from flask import Flask, request, render_template, jsonify, send_file
-import aiohttp
-import requests  # 동기식 HTTP 요청용 추가
+import requests  # 동기식 HTTP 요청용
 from dotenv import load_dotenv
 import uuid
 
@@ -42,7 +39,6 @@ def make_headers():
         headers["Authorization"] = f"Bearer {API_BEARER_TOKEN}"
     return headers
 
-# 동기식 버전으로 변경
 def send_request_sync(payload):
     global API_KEYS, API_KEY_CYCLE
     headers = make_headers()
@@ -104,7 +100,7 @@ def gallery():
     return render_template('gallery.html', images=sorted_gallery, current_sort=sort_by)
 
 @app.route('/generate', methods=['POST'])
-def generate_image():  # async 제거
+def generate_image():
     try:
         prompt = request.form.get('prompt', '').strip()
         if not prompt:
@@ -152,7 +148,9 @@ def generate_image():  # async 제거
             ]
         }
 
-        data = send_request_sync(payload)  # 동기식 함수 호출
+        print(f"API 요청 시작: 프롬프트={prompt[:50]}...")
+        data = send_request_sync(payload)
+        print("API 요청 완료")
 
         response_text = ""
         result_image_path = None
@@ -183,6 +181,7 @@ def generate_image():  # async 제거
                         'likes': 0
                     }
                     image_gallery.append(gallery_item)
+                    print(f"갤러리에 이미지 추가됨: {result_id}")
 
         if result_image_path:
             return jsonify({
@@ -196,7 +195,7 @@ def generate_image():  # async 제거
     except Exception as e:
         print(f"에러 발생: {e}")
         import traceback
-        traceback.print_exc()  # 디버깅용 상세 에러 출력
+        traceback.print_exc()
         return jsonify({'error': f'오류 발생: {str(e)}'}), 500
 
 @app.route('/like/<image_id>', methods=['POST'])
@@ -217,15 +216,25 @@ def get_image_details(image_id):
 # 에러 핸들러 추가
 @app.errorhandler(404)
 def not_found(error):
-    if request.path.startswith('/api/') or request.path.startswith('/generate') or request.path.startswith('/like') or request.path.startswith('/image'):
+    if request.path.startswith('/generate') or request.path.startswith('/like') or request.path.startswith('/image'):
         return jsonify({'error': '요청한 리소스를 찾을 수 없습니다.'}), 404
-    return render_template('404.html'), 404
+    return render_template('index.html'), 404  # 404 페이지 대신 메인으로
 
 @app.errorhandler(500)
 def internal_error(error):
-    if request.path.startswith('/api/') or request.path.startswith('/generate') or request.path.startswith('/like') or request.path.startswith('/image'):
+    print(f"500 에러 발생: {error}")
+    if request.path.startswith('/generate') or request.path.startswith('/like') or request.path.startswith('/image'):
         return jsonify({'error': '서버 내부 오류가 발생했습니다.'}), 500
-    return render_template('500.html'), 500
+    return render_template('index.html'), 500  # 500 페이지 대신 메인으로
+
+# 헬스 체크 엔드포인트
+@app.route('/health')
+def health_check():
+    return jsonify({'status': 'healthy', 'gallery_count': len(image_gallery)})
 
 if __name__ == '__main__':
+    print("🚀 Flask 앱 시작 중...")
+    print(f"📁 업로드 폴더: {UPLOAD_FOLDER}")
+    print(f"📁 결과 폴더: {RESULT_FOLDER}")
+    print(f"🔑 API 키 개수: {len(API_KEYS) if API_KEYS else 0}")
     app.run(host="0.0.0.0", port=7860, debug=True)
