@@ -317,3 +317,27 @@ function previewImage(input, previewId) {
         updateDropZoneState(slot, false);
     }
 }
+
+// 사이드바 토글 기능
+document.addEventListener('DOMContentLoaded', function() {
+    const sidebarToggle = document.getElementById('sidebarToggle');
+    const sidebarOpenBtn = document.getElementById('sidebarOpenBtn');
+    const sidebar = document.getElementById('sidebar');
+    const mainContent = document.querySelector('.main-content');
+    
+    if (sidebarToggle) {
+        sidebarToggle.addEventListener('click', function() {
+            sidebar.classList.add('collapsed');
+            mainContent.classList.add('expanded');
+            sidebarOpenBtn.style.display = 'flex';
+        });
+    }
+    
+    if (sidebarOpenBtn) {
+        sidebarOpenBtn.addEventListener('click', function() {
+            sidebar.classList.remove('collapsed');
+            mainContent.classList.remove('expanded');
+            sidebarOpenBtn.style.display = 'none';
+        });
+    }
+});
