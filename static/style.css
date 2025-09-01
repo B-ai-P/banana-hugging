@@ -1391,7 +1391,7 @@ body {
 
 /* 로고 스타일 - 추가 */
 .logo h2 {
-    color: white !important;
+    color: #1e293b !important;  /* 👈 흰색→어두운색 */
     margin-bottom: 30px;
     font-size: 20px;
     text-align: center;
@@ -1408,19 +1408,19 @@ body {
     display: block;
     padding: 12px 16px;
     text-decoration: none;
-    color: rgba(255, 255, 255, 0.9) !important;
+    color: #64748b !important;  /* 👈 흰색→회색 */
     border-radius: 8px;
     transition: all 0.2s ease;
 }
 
 .nav-item:hover {
-    background: rgba(255, 255, 255, 0.1);
-    color: white !important;
+    background: #f1f5f9;  /* 👈 흰색→연한회색 */
+    color: #1e293b !important;  /* 👈 흰색→어두운색 */
 }
 
 .nav-item.active {
-    background: rgba(255, 255, 255, 0.2);
-    color: white !important;
+    background: #3b82f6;  /* 👈 흰색→파란색 */
+    color: #ffffff !important;  /* 👈 활성화된 건 흰색 유지 */
     font-weight: 600;
 }
 
@@ -1438,9 +1438,9 @@ body {
     position: absolute;
     top: 20px;
     right: 15px;
-    background: rgba(255, 255, 255, 0.2);
+    background: #f1f5f9;
     border: none;
-    color: white;
+    color: #64748b;
     width: 30px;
     height: 30px;
     border-radius: 50%;
@@ -1452,7 +1452,7 @@ body {
 }
 
 .sidebar-toggle:hover {
-    background: rgba(255, 255, 255, 0.3);
+    background: #e2e8f0;
     transform: scale(1.1);
 }
 
