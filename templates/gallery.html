@@ -47,6 +47,16 @@
                     </div>
                 </div>
 
+                <!-- 어드민 패널 -->
+                <div class="admin-panel" id="adminPanel" style="display: none;">
+                    <div class="admin-controls">
+                        <button id="selectModeBtn" class="admin-btn">다중선택 모드</button>
+                        <button id="deleteSelectedBtn" class="admin-btn delete-btn" style="display: none;">선택 항목 삭제</button>
+                        <button id="cancelSelectBtn" class="admin-btn cancel-btn" style="display: none;">선택 취소</button>
+                        <span id="selectedCount" class="selected-count" style="display: none;">0개 선택됨</span>
+                    </div>
+                </div>
+
                 <!-- 마소너리 갤러리 -->
                 <div class="masonry-gallery" id="gallery">
                     <!-- 이미지들이 여기에 동적으로 추가됩니다 -->
@@ -118,6 +128,30 @@
                         </div>
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 삭제 확인 모달 -->
+    <div id="deleteModal" class="delete-modal" style="display: none;">
+        <div class="delete-modal-content">
+            <h3>이미지 삭제</h3>
+            <p><span id="deleteCount">0</span>개의 이미지를 삭제하시겠습니까?</p>
+            
+            <div class="delete-options">
+                <label>
+                    <input type="radio" name="deleteOption" value="delete_only" checked>
+                    이미지만 삭제
+                </label>
+                <label>
+                    <input type="radio" name="deleteOption" value="delete_and_ban">
+                    이미지 삭제 + 제작자 IP 영구 차단
+                </label>
+            </div>
+            
+            <div class="delete-modal-buttons">
+                <button id="confirmDeleteBtn" class="delete-confirm-btn">삭제 실행</button>
+                <button id="cancelDeleteBtn" class="cancel-btn">취소</button>
             </div>
         </div>
     </div>
