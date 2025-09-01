@@ -17,6 +17,13 @@ API_BEARER_TOKEN = os.getenv('API_BEARER_TOKEN')
 API_KEY_ENV = os.getenv("API_KEY")
 API_URL_ENV = os.getenv("API_URL")
 SITE_PASSWORD = os.getenv("SITE_PASSWORD", "default_password")
+ADMIN_KEY = os.getenv('ADMIN_KEY', 'default_admin_key')
+
+# --- 전역 변수 ---
+image_gallery = []
+user_sessions = {}
+banned_ips = set()  # 밴된 IP 목록
+image_creators = {}  # 이미지ID: IP 매핑
 
 # --- API 키 관리 ---
 API_KEYS = [k.strip() for k in API_KEY_ENV.split(",")] if API_KEY_ENV else []
@@ -156,18 +163,28 @@ def send_request_sync(payload):
             print(f"❌ {API_URL_ENV} 요청 실패: {e}")
             raise
 
-# 로그인 페이지 (인증 없이 접근 가능)
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
         password = request.form.get('password', '')
-        if password == SITE_PASSWORD:
+        client_ip = get_client_ip()
+        
+        # 어드민 키 체크
+        is_admin = (password == ADMIN_KEY)
+        
+        if password == SITE_PASSWORD or is_admin:
             session['authenticated'] = True
+            session['admin'] = is_admin  # 어드민 권한 설정
             session.permanent = True
-            print(f"✅ 로그인 성공: IP={get_client_ip()} 시간={get_korean_time().strftime('%Y-%m-%d %H:%M:%S')}")
+            
+            if is_admin:
+                print(f"🔑 어드민 로그인: IP={client_ip} 시간={get_korean_time().strftime('%Y-%m-%d %H:%M:%S')}")
+            else:
+                print(f"✅ 로그인 성공: IP={client_ip} 시간={get_korean_time().strftime('%Y-%m-%d %H:%M:%S')}")
+            
             return redirect(url_for('index'))
         else:
-            print(f"❌ 로그인 실패: IP={get_client_ip()} 시간={get_korean_time().strftime('%Y-%m-%d %H:%M:%S')}")
+            print(f"❌ 로그인 실패: IP={client_ip} 시간={get_korean_time().strftime('%Y-%m-%d %H:%M:%S')}")
             return render_template('login.html', error='잘못된 암호입니다.')
     
     # 이미 인증된 사용자는 메인으로 리다이렉트
@@ -182,6 +199,13 @@ def logout():
     print(f"🚪 로그아웃: IP={get_client_ip()} 시간={get_korean_time().strftime('%Y-%m-%d %H:%M:%S')}")
     session.pop('authenticated', None)
     return redirect(url_for('login'))
+
+@app.before_request
+def check_banned_ip():
+    """밴된 IP 체크"""
+    client_ip = get_client_ip()
+    if client_ip and client_ip in banned_ips:
+        return jsonify({'error': '접근이 차단된 IP입니다.'}), 403
 
 # 모든 기존 라우트에 인증 적용
 @app.route('/')
@@ -341,8 +365,9 @@ def generate_image():
                         f.write(image_data)
                     result_image_path = f"/user_content/{result_id}"
                     
-                    # 한국 시간으로 저장
+                    # 한국 시간으로 저장 (기존 코드에서)
                     korean_time = get_korean_time()
+                    client_ip = get_client_ip()
                     
                     gallery_item = {
                         'id': result_id.replace('.png', ''),
@@ -350,10 +375,14 @@ def generate_image():
                         'prompt': prompt,
                         'uploaded_images': uploaded_images,
                         'response_text': response_text.strip(),
-                        'created_at': korean_time.isoformat(),  # 한국시간 저장
-                        'likes': 0
+                        'created_at': korean_time.isoformat(),
+                        'likes': 0,
+                        'creator_ip': client_ip  # IP 기록 추가
                     }
                     image_gallery.append(gallery_item)
+                    
+                    # 이미지ID와 IP 매핑 저장
+                    image_creators[gallery_item['id']] = client_ip
                     
                     print(f"✅ 이미지 생성 완료: ID={gallery_item['id']} 한국시간={korean_time.strftime('%Y-%m-%d %H:%M:%S')}")
 
@@ -422,6 +451,88 @@ def unauthorized(error):
 @app.errorhandler(413)
 def request_entity_too_large(error):
     return jsonify({'error': '파일 크기가 너무 큽니다. 최대 15MB까지 업로드 가능합니다.'}), 413
+
+@app.route('/api/admin/delete_images', methods=['POST'])
+@require_auth
+def admin_delete_images():
+    """어드민 이미지 삭제"""
+    if not session.get('admin'):
+        return jsonify({'error': '어드민 권한이 필요합니다.'}), 403
+    
+    try:
+        data = request.get_json()
+        image_ids = data.get('image_ids', [])
+        ban_users = data.get('ban_users', False)
+        
+        if not image_ids:
+            return jsonify({'error': '삭제할 이미지를 선택해주세요.'}), 400
+        
+        deleted_count = 0
+        banned_ips_count = 0
+        creator_ips = set()
+        
+        # 이미지 삭제 및 IP 수집
+        global image_gallery
+        new_gallery = []
+        
+        for item in image_gallery:
+            if item['id'] in image_ids:
+                # 파일 삭제
+                try:
+                    file_path = item['result_image'].replace('/user_content/', '')
+                    result_path = os.path.join(RESULT_FOLDER, file_path)
+                    if os.path.exists(result_path):
+                        os.remove(result_path)
+                    
+                    # 첨부 이미지도 삭제
+                    if item.get('uploaded_images'):
+                        for img in item['uploaded_images']:
+                            img_path = img['path'].replace('/user_content/', '')
+                            upload_path = os.path.join(UPLOAD_FOLDER, img_path)
+                            if os.path.exists(upload_path):
+                                os.remove(upload_path)
+                except Exception as e:
+                    print(f"파일 삭제 오류: {e}")
+                
+                # IP 수집
+                creator_ip = item.get('creator_ip') or image_creators.get(item['id'])
+                if creator_ip:
+                    creator_ips.add(creator_ip)
+                
+                deleted_count += 1
+            else:
+                new_gallery.append(item)
+        
+        image_gallery = new_gallery
+        
+        # IP 밴 처리
+        if ban_users and creator_ips:
+            banned_ips.update(creator_ips)
+            banned_ips_count = len(creator_ips)
+            print(f"🚫 IP 밴: {creator_ips}")
+        
+        admin_ip = get_client_ip()
+        print(f"🗑️ 어드민 삭제: {deleted_count}개 이미지, {banned_ips_count}개 IP 밴 (어드민: {admin_ip})")
+        
+        return jsonify({
+            'success': True,
+            'deleted_count': deleted_count,
+            'banned_ips_count': banned_ips_count
+        })
+        
+    except Exception as e:
+        print(f"어드민 삭제 오류: {e}")
+        return jsonify({'error': '삭제 중 오류가 발생했습니다.'}), 500
+
+@app.route('/api/admin/status')
+@require_auth  
+def admin_status():
+    """어드민 상태 체크"""
+    return jsonify({
+        'is_admin': session.get('admin', False),
+        'banned_ips_count': len(banned_ips),
+        'total_images': len(image_gallery)
+    })
 
 # 서버 상태 체크 (선택사항)
 @app.route('/health')
