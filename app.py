@@ -205,7 +205,7 @@ def check_banned_ip():
     """밴된 IP 체크"""
     client_ip = get_client_ip()
     if client_ip and client_ip in banned_ips:
-        return jsonify({'error': '접근이 차단된 IP입니다.'}), 403
+        return jsonify({'error': '접근이 차단되었습니다.'}), 403
 
 # 모든 기존 라우트에 인증 적용
 @app.route('/')
