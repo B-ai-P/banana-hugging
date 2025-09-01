@@ -9,7 +9,12 @@
 <body>
     <div class="app">
         <!-- 사이드바 -->
-        <div class="sidebar">
+        <div class="sidebar" id="sidebar">
+            <!-- 사이드바 접기 버튼 -->
+            <button class="sidebar-toggle" id="sidebarToggle">
+                <span>‹</span>
+            </button>
+            
             <div class="logo">
                 <h1>잼나나 급식소</h1>
             </div>
@@ -24,7 +29,17 @@
                     <span class="nav-text">생성</span>
                 </a>
             </nav>
-
+        
+            <!-- 어드민 패널을 로그아웃 버튼 위에 추가 -->
+            <div class="admin-panel-fixed" id="adminPanelFixed" style="display: none;">
+                <div class="admin-controls-fixed">
+                    <button id="selectModeBtn" class="admin-btn-fixed">다중선택</button>
+                    <button id="deleteSelectedBtn" class="admin-btn-fixed delete-btn" style="display: none;">선택삭제</button>
+                    <button id="cancelSelectBtn" class="admin-btn-fixed cancel-btn" style="display: none;">선택취소</button>
+                    <div id="selectedCount" class="selected-count-fixed" style="display: none;">0개 선택</div>
+                </div>
+            </div>
+        
             <!-- 로그아웃 버튼 -->
             <div class="sidebar-footer">
                 <a href="/logout" class="logout-btn">
@@ -33,6 +48,11 @@
                 </a>
             </div>
         </div>
+        
+        <!-- 사이드바 닫힘 상태일 때 열기 버튼 -->
+        <button class="sidebar-open-btn" id="sidebarOpenBtn" style="display: none;">
+            <span>›</span>
+        </button>
 
         <!-- 메인 콘텐츠 -->
         <div class="main-content">
@@ -44,16 +64,6 @@
                         <button class="sort-btn active" data-sort="newest">최신순</button>
                         <button class="sort-btn" data-sort="oldest">오래된순</button>
                         <button class="sort-btn" data-sort="likes">좋아요순</button>
-                    </div>
-                </div>
-
-                <!-- 어드민 패널 -->
-                <div class="admin-panel" id="adminPanel" style="display: none;">
-                    <div class="admin-controls">
-                        <button id="selectModeBtn" class="admin-btn">다중선택 모드</button>
-                        <button id="deleteSelectedBtn" class="admin-btn delete-btn" style="display: none;">선택 항목 삭제</button>
-                        <button id="cancelSelectBtn" class="admin-btn cancel-btn" style="display: none;">선택 취소</button>
-                        <span id="selectedCount" class="selected-count" style="display: none;">0개 선택됨</span>
                     </div>
                 </div>
 
