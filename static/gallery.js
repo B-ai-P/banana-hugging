@@ -90,6 +90,12 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // 초기 이미지 로드
     loadImages(true);
+
+    // 어드민 상태 체크  👈 여기 추가!
+    checkAdminStatus();
+    
+    // 어드민 이벤트 리스너  👈 여기 추가!
+    setupAdminEvents();
     
     // 정렬 버튼 이벤트
     document.querySelectorAll('.sort-btn').forEach(btn => {
@@ -466,5 +472,202 @@ async function quickLike(event, imageId) {
         alert('좋아요 처리 중 오류가 발생했습니다.');
     } finally {
         likeElement.classList.remove('processing');
+    }
+}
+
+// 어드민 상태 체크
+async function checkAdminStatus() {
+    try {
+        const response = await fetch('/api/admin/status');
+        const data = await response.json();
+        
+        if (data.is_admin) {
+            document.getElementById('adminPanel').style.display = 'block';
+            console.log('🔑 어드민 권한 확인됨');
+        }
+    } catch (error) {
+        console.error('어드민 상태 체크 오류:', error);
+    }
+}
+
+// 어드민 이벤트 설정
+function setupAdminEvents() {
+    const selectModeBtn = document.getElementById('selectModeBtn');
+    const deleteSelectedBtn = document.getElementById('deleteSelectedBtn');
+    const cancelSelectBtn = document.getElementById('cancelSelectBtn');
+    const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
+    const cancelDeleteBtn = document.getElementById('cancelDeleteBtn');
+    
+    if (selectModeBtn) {
+        selectModeBtn.addEventListener('click', toggleSelectMode);
+    }
+    
+    if (deleteSelectedBtn) {
+        deleteSelectedBtn.addEventListener('click', showDeleteModal);
+    }
+    
+    if (cancelSelectBtn) {
+        cancelSelectBtn.addEventListener('click', exitSelectMode);
+    }
+    
+    if (confirmDeleteBtn) {
+        confirmDeleteBtn.addEventListener('click', executeDelete);
+    }
+    
+    if (cancelDeleteBtn) {
+        cancelDeleteBtn.addEventListener('click', hideDeleteModal);
+    }
+}
+
+let isSelectMode = false;
+let selectedImages = new Set();
+
+// 선택 모드 토글
+function toggleSelectMode() {
+    isSelectMode = !isSelectMode;
+    
+    const selectModeBtn = document.getElementById('selectModeBtn');
+    const deleteSelectedBtn = document.getElementById('deleteSelectedBtn');
+    const cancelSelectBtn = document.getElementById('cancelSelectBtn');
+    const selectedCount = document.getElementById('selectedCount');
+    
+    if (isSelectMode) {
+        selectModeBtn.style.display = 'none';
+        deleteSelectedBtn.style.display = 'inline-block';
+        cancelSelectBtn.style.display = 'inline-block';
+        selectedCount.style.display = 'inline-block';
+        
+        // 모든 이미지에 선택 가능 클래스 추가
+        document.querySelectorAll('.gallery-item').forEach(item => {
+            item.classList.add('selectable');
+            item.addEventListener('click', toggleImageSelection);
+        });
+        
+        console.log('🎯 다중선택 모드 활성화');
+    } else {
+        exitSelectMode();
+    }
+}
+
+// 선택 모드 종료
+function exitSelectMode() {
+    isSelectMode = false;
+    selectedImages.clear();
+    
+    const selectModeBtn = document.getElementById('selectModeBtn');
+    const deleteSelectedBtn = document.getElementById('deleteSelectedBtn');
+    const cancelSelectBtn = document.getElementById('cancelSelectBtn');
+    const selectedCount = document.getElementById('selectedCount');
+    
+    selectModeBtn.style.display = 'inline-block';
+    deleteSelectedBtn.style.display = 'none';
+    cancelSelectBtn.style.display = 'none';
+    selectedCount.style.display = 'none';
+    
+    // 선택 상태 초기화
+    document.querySelectorAll('.gallery-item').forEach(item => {
+        item.classList.remove('selectable', 'selected');
+        item.removeEventListener('click', toggleImageSelection);
+    });
+    
+    updateSelectedCount();
+    console.log('❌ 다중선택 모드 비활성화');
+}
+
+// 이미지 선택 토글
+function toggleImageSelection(event) {
+    if (!isSelectMode) return;
+    
+    event.stopPropagation();
+    
+    const galleryItem = event.currentTarget;
+    const img = galleryItem.querySelector('img');
+    
+    if (!img || !img.src) return;
+    
+    // 이미지 ID 추출 (src에서)
+    const imageId = extractImageIdFromSrc(img.src);
+    
+    if (galleryItem.classList.contains('selected')) {
+        galleryItem.classList.remove('selected');
+        selectedImages.delete(imageId);
+    } else {
+        galleryItem.classList.add('selected');
+        selectedImages.add(imageId);
+    }
+    
+    updateSelectedCount();
+}
+
+// 이미지 ID 추출
+function extractImageIdFromSrc(src) {
+    const filename = src.split('/').pop();
+    return filename.replace('.png', '');
+}
+
+// 선택 개수 업데이트
+function updateSelectedCount() {
+    const selectedCount = document.getElementById('selectedCount');
+    const deleteSelectedBtn = document.getElementById('deleteSelectedBtn');
+    
+    if (selectedCount) {
+        selectedCount.textContent = `${selectedImages.size}개 선택됨`;
+    }
+    
+    if (deleteSelectedBtn) {
+        deleteSelectedBtn.disabled = selectedImages.size === 0;
+    }
+}
+
+// 삭제 모달 표시
+function showDeleteModal() {
+    if (selectedImages.size === 0) {
+        alert('삭제할 이미지를 선택해주세요.');
+        return;
+    }
+    
+    document.getElementById('deleteCount').textContent = selectedImages.size;
+    document.getElementById('deleteModal').style.display = 'block';
+}
+
+// 삭제 모달 숨기기
+function hideDeleteModal() {
+    document.getElementById('deleteModal').style.display = 'none';
+}
+
+// 삭제 실행
+async function executeDelete() {
+    const deleteOption = document.querySelector('input[name="deleteOption"]:checked').value;
+    const banUsers = (deleteOption === 'delete_and_ban');
+    const imageIds = Array.from(selectedImages);
+    
+    try {
+        const response = await fetch('/api/admin/delete_images', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                image_ids: imageIds,
+                ban_users: banUsers
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            alert(`✅ ${data.deleted_count}개 이미지 삭제 완료${banUsers ? `, ${data.banned_ips_count}개 IP 차단` : ''}`);
+            
+            hideDeleteModal();
+            exitSelectMode();
+            
+            // 페이지 새로고침으로 갤러리 업데이트
+            window.location.reload();
+        } else {
+            alert('삭제 실패: ' + data.error);
+        }
+    } catch (error) {
+        console.error('삭제 오류:', error);
+        alert('삭제 중 오류가 발생했습니다.');
     }
 }
