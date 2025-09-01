@@ -78,6 +78,40 @@ class RowGridLayout {
 
 let gridInstance = null;
 
+// 사이드바 이벤트 설정
+function setupSidebarEvents() {
+    const sidebarToggle = document.getElementById('sidebarToggle');
+    const sidebarOpenBtn = document.getElementById('sidebarOpenBtn');
+    const sidebar = document.getElementById('sidebar');
+    const mainContent = document.querySelector('.main-content');
+    
+    if (sidebarToggle) {
+        sidebarToggle.addEventListener('click', function() {
+            sidebar.classList.add('collapsed');
+            mainContent.classList.add('expanded');
+            sidebarOpenBtn.style.display = 'block';
+        });
+    }
+    
+    if (sidebarOpenBtn) {
+        sidebarOpenBtn.addEventListener('click', function() {
+            sidebar.classList.remove('collapsed');
+            mainContent.classList.remove('expanded');
+            sidebarOpenBtn.style.display = 'none';
+        });
+    }
+    
+    // 모바일에서 오버레이 클릭시 사이드바 닫기
+    if (window.innerWidth <= 768) {
+        mainContent.addEventListener('click', function() {
+            if (!sidebar.classList.contains('collapsed')) {
+                sidebar.classList.add('collapsed');
+                sidebarOpenBtn.style.display = 'block';
+            }
+        });
+    }
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     // 그리드 인스턴스 생성
     const gallery = document.getElementById('gallery');
@@ -96,6 +130,9 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // 어드민 이벤트 리스너  👈 여기 추가!
     setupAdminEvents();
+
+    // 사이드바 이벤트 리스너 추가
+    setupSidebarEvents();
     
     // 정렬 버튼 이벤트
     document.querySelectorAll('.sort-btn').forEach(btn => {
@@ -250,8 +287,13 @@ async function appendImagesWithGrid(images) {
                     if (loadingText) loadingText.remove();
                     
                     // 클릭 이벤트 추가
-                    galleryItem.onclick = () => openModal(image.id);
-                }, 50);
+                    galleryItem.onclick = function(event) {
+                        // 🎯 선택 모드가 아닐 때만 모달 열기
+                        if (!isSelectMode) {
+                            openModal(image.id);
+                        }
+                    };
+                }, 50);  // 🎯 여기에 }); 추가!
                 
                 resolve();
             };
@@ -482,7 +524,8 @@ async function checkAdminStatus() {
         const data = await response.json();
         
         if (data.is_admin) {
-            document.getElementById('adminPanel').style.display = 'block';
+            // 🎯 기존 adminPanel 대신 adminPanelFixed 사용
+            document.getElementById('adminPanelFixed').style.display = 'block';
             console.log('🔑 어드민 권한 확인됨');
         }
     } catch (error) {
@@ -578,7 +621,8 @@ function exitSelectMode() {
 function toggleImageSelection(event) {
     if (!isSelectMode) return;
     
-    event.stopPropagation();
+    event.preventDefault(); // 🎯 기본 동작 방지
+    event.stopPropagation(); // 🎯 이벤트 전파 방지
     
     const galleryItem = event.currentTarget;
     const img = galleryItem.querySelector('img');
