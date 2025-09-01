@@ -1472,3 +1472,194 @@ body {
 .drag-overlay.show {
     display: flex;
 }
+
+/* 사이드바 개선 */
+.sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 280px;
+    height: 100vh;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    overflow-y: auto;
+    transition: transform 0.3s ease;
+    z-index: 1000;
+}
+
+.sidebar.collapsed {
+    transform: translateX(-280px);
+}
+
+.sidebar-content {
+    padding: 20px;
+    height: 100%;
+}
+
+/* 사이드바 토글 버튼 */
+.sidebar-toggle {
+    position: absolute;
+    top: 20px;
+    right: 15px;
+    background: rgba(255, 255, 255, 0.2);
+    border: none;
+    color: white;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 20px;
+    line-height: 1;
+    transition: all 0.2s ease;
+    z-index: 10;
+}
+
+.sidebar-toggle:hover {
+    background: rgba(255, 255, 255, 0.3);
+    transform: scale(1.1);
+}
+
+.sidebar.collapsed .sidebar-toggle span {
+    transform: rotate(180deg);
+}
+
+/* 사이드바 열기 버튼 */
+.sidebar-open-btn {
+    position: fixed;
+    top: 20px;
+    left: 20px;
+    background: #667eea;
+    border: none;
+    color: white;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 20px;
+    line-height: 1;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    transition: all 0.2s ease;
+    z-index: 999;
+}
+
+.sidebar-open-btn:hover {
+    background: #5a67d8;
+    transform: scale(1.1);
+}
+
+/* 메인 콘텐츠 조정 */
+.main-content {
+    margin-left: 280px;
+    transition: margin-left 0.3s ease;
+    min-height: 100vh;
+}
+
+.main-content.expanded {
+    margin-left: 0;
+}
+
+/* 고정 어드민 패널 */
+.admin-panel-fixed {
+    margin: 15px 0;
+    padding: 15px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    backdrop-filter: blur(10px);
+}
+
+.admin-controls-fixed {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.admin-btn-fixed {
+    padding: 8px 12px;
+    border: none;
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 13px;
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+    backdrop-filter: blur(5px);
+}
+
+.admin-btn-fixed:hover {
+    background: rgba(255, 255, 255, 0.3);
+    transform: translateY(-1px);
+}
+
+.admin-btn-fixed.delete-btn {
+    background: rgba(239, 68, 68, 0.7);
+}
+
+.admin-btn-fixed.delete-btn:hover {
+    background: rgba(220, 38, 38, 0.8);
+}
+
+.admin-btn-fixed.cancel-btn {
+    background: rgba(107, 114, 128, 0.7);
+}
+
+.admin-btn-fixed.cancel-btn:hover {
+    background: rgba(75, 85, 99, 0.8);
+}
+
+.selected-count-fixed {
+    font-weight: 600;
+    color: #fef2f2;
+    text-align: center;
+    font-size: 12px;
+    padding: 4px 8px;
+    background: rgba(239, 68, 68, 0.5);
+    border-radius: 4px;
+}
+
+/* 모바일 대응 */
+@media (max-width: 1024px) {
+    .sidebar {
+        width: 250px;
+    }
+    
+    .main-content {
+        margin-left: 250px;
+    }
+    
+    .sidebar.collapsed {
+        transform: translateX(-250px);
+    }
+}
+
+@media (max-width: 768px) {
+    .sidebar {
+        width: 100%;
+        transform: translateX(-100%);
+    }
+    
+    .sidebar.collapsed {
+        transform: translateX(-100%);
+    }
+    
+    .sidebar:not(.collapsed) {
+        transform: translateX(0);
+    }
+    
+    .main-content {
+        margin-left: 0;
+    }
+    
+    .sidebar-open-btn {
+        display: block !important;
+    }
+}
+
+/* 선택 모드일 때 이미지 클릭 방지 */
+.gallery-item.selectable .image-container {
+    pointer-events: none;
+}
+
+.gallery-item.selectable {
+    pointer-events: auto;
+}
