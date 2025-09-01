@@ -9,7 +9,12 @@
 <body>
     <div class="app">
         <!-- 사이드바 -->
-        <div class="sidebar">
+        <div class="sidebar" id="sidebar">
+            <!-- 접기 버튼 추가 -->
+            <button class="sidebar-toggle" id="sidebarToggle">
+                <span>‹</span>
+            </button>
+            
             <div class="logo">
                 <h1>잼나나 급식소</h1>
             </div>
@@ -24,7 +29,7 @@
                     <span class="nav-text">생성</span>
                 </a>
             </nav>
-
+        
             <!-- 로그아웃 버튼 - 사이드바 맨 아래 -->
             <div class="sidebar-footer">
                 <a href="/logout" class="logout-btn">
@@ -33,9 +38,14 @@
                 </a>
             </div>
         </div>
+        
+        <!-- 사이드바 열기 버튼 -->
+        <button class="sidebar-open-btn" id="sidebarOpenBtn" style="display: none;">
+            <span>›</span>
+        </button>
 
         <!-- 메인 콘텐츠 -->
-        <div class="main-content">
+        <div class="main-content" id="mainContent">
             <div class="content-area">
                 <div class="welcome-section">
                     <h2>AI 이미지 생성</h2>
